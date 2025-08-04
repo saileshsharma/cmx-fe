@@ -1,0 +1,38 @@
+# Java/Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IntelliJ IDEA / Eclipse / VS Code
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment & Credentials
+*.env
+application-*.yml
+application-*.properties
+
+# Node/Frontend (if applicable)
+node_modules/
+dist/
+
+# Build & Temp
+out/
+bin/
+tmp/
