@@ -30,7 +30,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-southeast-1
-          role-to-assume: arn:aws:iam::933051411734:role/GithubDeployRole   # or use AWS keys
+          role-to-assume: arn:aws:iam::933051411734:role/GithubDeployS3Role   # or use AWS keys
 
       - name: Sync to S3 (assets)
         run: |
