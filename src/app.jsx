@@ -3,19 +3,50 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { ApolloProvider } from "@apollo/client";
 import client from "./apolloClient";
 
-// ✅ Pages
-import Home from "./components/Home";
-import PolicyLookup from "./components/PolicyLookup";
-import CreateClaim from "./components/Fnol";
-import ClaimDetail from "./components/ClaimDetails";
+
+// Login
 import LoginPage from "./components/LoginPage";
+
+//Auth
 import ProtectedLayout from "./components/ProtectedLayout";
+
+// Home
+import Home from "./components/Home/Home";
+import PolicyDashboard from "./components/Home/PolicyDashboard";
+
+//Policy
+import PolicyLookup from "./components/policy/PolicyLookup";
+
+//Claim
+import ClaimDetail from "./components/Claim/ClaimDetails";
+import ClaimDetailedView from "./components/claim/ClaimDetailedView";
+
+//Surveyor
+import DispatcherSurveyor from "./components/surveyor/DispatcherSurveyor";
+import SurveyorLiveMap from "./components/surveyor/SurveyorLiveMap";
+import Surveyors from "./components/surveyor/Surveyors";
+import SurveyorsInquiry from "./components/surveyor/SurveyorsInquiry";
+import SurveyorEdit from "./components/surveyor/SurveyorEdit";
+
+
+//Notifications
+import Notifications from "./components/notification/Notifications";
+
+//Fnol
+import CreateFnol from "./components/Fnol/Fnol";
+import RegisterFNOL from "./components/fnol/RegisterFNOL";
+import FnolDashboard from "./components/fnol/FnolDashboard";
+import FnolInquiry from "./components/fnol/FnolInquiry";
+
+
+
+//Wip
+import WipPage from "./components/WipPage";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Load authentication from localStorage
   useEffect(() => {
     const authStatus = localStorage.getItem("isAuthenticated") === "true";
     setIsAuthenticated(authStatus);
@@ -34,48 +65,43 @@ export default function App() {
     <ApolloProvider client={client}>
       <Router>
         <Routes>
-          {/* ✅ Public Route */}
+          {/* Public */}
           <Route path="/login" element={<LoginPage setIsAuthenticated={setIsAuthenticated} />} />
 
-          {/* ✅ Protected Routes */}
+          {/* Protected layout (mounts once) */}
           <Route
-            path="/claims-dashboard"
+            path="/"
             element={
-              <ProtectedLayout isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}>
-                <Home />
-              </ProtectedLayout>
+              isAuthenticated
+                ? <ProtectedLayout setIsAuthenticated={setIsAuthenticated} />
+                : <Navigate to="/login" replace />
             }
-          />
-          <Route
-            path="/policy-lookup"
-            element={
-              <ProtectedLayout isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}>
-                <PolicyLookup />
-              </ProtectedLayout>
-            }
-          />
-          <Route
-            path="/create-claim"
-            element={
-              <ProtectedLayout isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}>
-                <CreateClaim />
-              </ProtectedLayout>
-            }
-          />
-          <Route
-            path="/claims/:claimID"
-            element={
-              <ProtectedLayout isAuthenticated={isAuthenticated} setIsAuthenticated={setIsAuthenticated}>
-                <ClaimDetail />
-              </ProtectedLayout>
-            }
-          />
+          >
+            {/* Default redirect */}
+            <Route index element={<Navigate to="claims-dashboard" replace />} />
 
-          {/* ✅ Root Redirect */}
-          <Route path="/" element={<Navigate to={isAuthenticated ? "/claims-dashboard" : "/login"} replace />} />
+            {/* Child pages */}
+            <Route path="claims-dashboard" element={<Home />} />
+            <Route path="policy-lookup" element={<PolicyLookup />} />
+            <Route path="create-fnol" element={<CreateFnol />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="surveyors" element={<Surveyors />} />
+            <Route path="claims/:claimID" element={<ClaimDetail />} />
+            <Route path="dispatcher_surveyor" element={<DispatcherSurveyor />} />
+            <Route path="register-fnol" element={<RegisterFNOL />} />         
+            <Route path="surveyors-inquiry" element={<SurveyorsInquiry />} />
+            <Route path="fnol-inquiry" element={<FnolInquiry />} />
+            <Route path="fnol-dashboard" element={<FnolDashboard />} />
+            <Route path="surveyors-live-map" element={<SurveyorLiveMap />} />
+            <Route path="claims-inquiry" element={<ClaimDetailedView />} />
+            <Route path="wip-page" element={<WipPage />} />
+            <Route path="surveyors-edit" element={<SurveyorEdit />} />
+            <Route path="policy-dashboard" element={<PolicyDashboard />} />
+            
+          </Route>
 
-          {/* ✅ Catch-All */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to={isAuthenticated ? "/claims-dashboard" : "/login"} replace />} />
         </Routes>
       </Router>
     </ApolloProvider>

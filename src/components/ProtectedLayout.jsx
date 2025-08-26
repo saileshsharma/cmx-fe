@@ -1,28 +1,26 @@
+// components/ProtectedLayout.jsx
 import React from "react";
-import { Navigate } from "react-router-dom";
-import Header from "./Header";
-import Sidebar from "./Sidebar";
-import Footer from "./Footer";
+import { Outlet, useNavigate } from "react-router-dom";
+import HeaderNav from "./Header";
 
-export default function ProtectedLayout({ children, isAuthenticated, setIsAuthenticated }) {
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+export default function ProtectedLayout({ setIsAuthenticated }) {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    setIsAuthenticated(false);
+    navigate("/login");
+  };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* ✅ Shared Sidebar */}
-      <Sidebar />
-
-      {/* ✅ Main Content Area */}
-      <div className="flex flex-col flex-1">
-        {/* ✅ Shared Header */}
-        <Header setIsAuthenticated={setIsAuthenticated} />
-
-        {/* ✅ Page Content */}
-        <main className="flex-1 p-6 overflow-y-auto">{children}</main>
-
-        {/* ✅ Shared Footer */}
-        <Footer />
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <HeaderNav
+        badges={{ notifications: 3 }}
+        brand={{ name: "Claims MotorX", sub: "" }}
+        onLogout={handleLogout}
+      />
+      <main className="flex-1 bg-gray-50">
+        <Outlet />
+      </main>
     </div>
   );
 }

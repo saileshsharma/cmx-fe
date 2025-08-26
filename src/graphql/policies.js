@@ -1,24 +1,125 @@
 import { gql } from "@apollo/client";
 
-// ✅ Query: Fetch policy by ID
-export const GET_POLICY_BY_ID = gql`
-  query ($policyId: String!) {
-    policyById(policyId: $policyId) {
-      policySeqID
-      policyID
+
+
+export const GET_ALL_POLICIES = gql`
+  query GetAllPolicies {
+    getAllPolicies {
+      id
+      policyNumber
       policyType
-      status
+      coverageType
+      sumInsured
+      premium
+      policyStatus
+      lob
       startDate
       endDate
-      policyHolder {
-        fullName
-        email
-        dob
-        address
+      claims {
+        id
+        claimNumber
+        claimStatus
       }
-      agent {
-        fullName
-        licenseNo
+      insured {
+        firstName
+        lastName
+        dob
+        addressLine1
+        addressLine2
+        gender
+        email
+        nationalId
+        passportNumber
+        driverLicenseNo
+        phoneNumber
+        licenseIssueDate
+        licenseExpiryDate
+        yearsDriving
+      }
+      address {
+        addressLine1
+        addressLine2
+        city
+        province
+        postalCode
+        country
+        latitude
+        longitude
+        locationType
+      }
+      vehicle {
+        id
+        registrationNumber
+        chassis
+        make
+        model
+        fuelType
+        bodyType
+        engineNo
+        year
+        registrationState
+        ownerName
+        usageType
+        vin
+        ownerName
+        ownerContact
+        color
+      }
+    }
+  }
+`;
+
+export const GET_POLICY_BY_STATUS = gql`
+  query GetPolicyByStatus($policyStatus: String!) {
+    getPolicyByStatus(policyStatus: $policyStatus) {
+      id
+      policyNumber
+      sumInsured
+      premium
+      policyStatus
+      startDate
+      endDate
+      insured {
+        firstName
+        lastName
+      }
+      vehicle {
+        id
+        registrationNumber
+        make
+        model
+      }
+    }
+  }
+`;
+
+export const GET_POLICY_BY_ID = gql`
+  query GetPolicyById($policyId: ID!) {
+    getPolicyById(policyId: $policyId) {
+      id
+      policyNumber
+      policyType
+      coverageType
+      sumInsured
+      premium
+      policyStatus
+      startDate
+      endDate
+      insured {
+        firstName
+        lastName
+        email
+      }
+      vehicle {
+        id
+        registrationNumber
+        make
+        model
+      }
+      claims {
+        id
+        claimNumber
+        claimStatus
       }
     }
   }

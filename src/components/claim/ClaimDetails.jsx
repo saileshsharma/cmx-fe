@@ -1,26 +1,31 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { GET_CLAIM_BY_ID, UPDATE_CLAIM } from "../graphql/claims";
+import { GET_CLAIM_BY_ID, UPDATE_CLAIM } from "../../graphql/claims";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // ✅ Currency Formatter
 const formatCurrencyTHB = (amount) =>
-  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(amount);
+  new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB" }).format(amount || 0);
 
 export default function ClaimDetail() {
   const { claimID } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const mode = new URLSearchParams(location.search).get("mode"); // view | edit
+  const mode = new URLSearchParams(location.search).get("mode") || "view"; // view | edit
 
+  // ✅ Fetch claim details
   const { loading, error, data } = useQuery(GET_CLAIM_BY_ID, { variables: { claimID } });
+
+  // ✅ Mutation for claim update
   const [updateClaim, { loading: updating }] = useMutation(UPDATE_CLAIM);
 
+  // ✅ Local form state
   const [claimStatus, setClaimStatus] = useState("");
   const [claimAmount, setClaimAmount] = useState("");
 
+  // ✅ Populate form once data is loaded
   useEffect(() => {
     if (data?.claimById) {
       setClaimStatus(data.claimById.claimStatus);
@@ -28,6 +33,7 @@ export default function ClaimDetail() {
     }
   }, [data]);
 
+  // ✅ Update handler
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
@@ -39,7 +45,7 @@ export default function ClaimDetail() {
         },
       });
       toast.success("✅ Claim updated successfully!");
-      setTimeout(() => navigate("/claims-dashboard"), 1500); // ✅ Redirect to dashboard
+      setTimeout(() => navigate("/claims-dashboard"), 1500);
     } catch {
       toast.error("❌ Failed to update claim.");
     }
@@ -57,17 +63,18 @@ export default function ClaimDetail() {
               {mode === "view" ? "🔍 View Claim" : "✏️ Edit Claim"}
             </h2>
 
-            {/* Policy Details */}
+            {/* ✅ Policy Details */}
             <div className="border p-4 rounded mb-4 bg-gray-50">
               <h3 className="font-semibold text-lg mb-2">Policy Details</h3>
               <p><strong>Policy ID:</strong> {data.claimById.policy.policyID}</p>
-              <p><strong>Holder:</strong> {data.claimById.policy.policyHolder.fullName}</p>
+              <p><strong>Holder:</strong> {data.claimById.policy.insured.fullName}</p>
               <p><strong>Agent:</strong> {data.claimById.policy.agent.fullName}</p>
               <p><strong>Status:</strong> {data.claimById.policy.status}</p>
             </div>
 
-            {/* Claim Details Form */}
+            {/* ✅ Claim Details Form */}
             <form onSubmit={handleUpdate} className="space-y-4">
+              {/* Claim ID */}
               <div>
                 <label className="block font-medium">Claim ID</label>
                 <input
@@ -78,6 +85,7 @@ export default function ClaimDetail() {
                 />
               </div>
 
+              {/* Incident Date */}
               <div>
                 <label className="block font-medium">Incident Date</label>
                 <input
@@ -88,6 +96,7 @@ export default function ClaimDetail() {
                 />
               </div>
 
+              {/* Claim Amount */}
               <div>
                 <label className="block font-medium">Claim Amount (THB)</label>
                 <input
@@ -97,8 +106,12 @@ export default function ClaimDetail() {
                   disabled={mode === "view"}
                   className={`w-full p-2 border rounded ${mode === "view" ? "bg-gray-100" : ""}`}
                 />
+                {mode === "view" && (
+                  <p className="text-gray-500 mt-1">({formatCurrencyTHB(claimAmount)})</p>
+                )}
               </div>
 
+              {/* Claim Status (Enum-based) */}
               <div>
                 <label className="block font-medium">Claim Status</label>
                 {mode === "view" ? (
@@ -114,13 +127,15 @@ export default function ClaimDetail() {
                     onChange={(e) => setClaimStatus(e.target.value)}
                     className="w-full p-2 border rounded"
                   >
-                    <option value="Open">Open</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Closed">Closed</option>
+                    <option value="OPEN">Open</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="CLOSED">Closed</option>
+                    <option value="REJECTED">Rejected</option>
                   </select>
                 )}
               </div>
 
+              {/* ✅ Submit button only in edit mode */}
               {mode === "edit" && (
                 <button
                   type="submit"
