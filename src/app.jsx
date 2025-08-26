@@ -5,43 +5,43 @@ import client from "./apolloClient";
 
 
 // Login
-import LoginPage from "./components/LoginPage";
+import LoginPage from "./components/LoginPage.jsx";
 
 //Auth
-import ProtectedLayout from "./components/ProtectedLayout";
+import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // Home
-import Home from "./components/Home/Home";
-import PolicyDashboard from "./components/Home/PolicyDashboard";
+import Home from "./components/Home/Home.jsx";
+import PolicyDashboard from "./components/Home/PolicyDashboard.jsx";
 
 //Policy
-import PolicyLookup from "./components/policy/PolicyLookup";
+import PolicyLookup from "./components/policy/PolicyLookup.jsx";
 
 //Claim
-import ClaimDetail from "./components/Claim/ClaimDetails";
-import ClaimDetailedView from "./components/claim/ClaimDetailedView";
+import ClaimDetail from "./components/Claim/ClaimDetails.jsx";
+import ClaimDetailedView from "./components/claim/ClaimDetailedView.jsx";
 
 //Surveyor
-import DispatcherSurveyor from "./components/surveyor/DispatcherSurveyor";
-import SurveyorLiveMap from "./components/surveyor/SurveyorLiveMap";
-import Surveyors from "./components/surveyor/Surveyors";
-import SurveyorsInquiry from "./components/surveyor/SurveyorsInquiry";
-import SurveyorEdit from "./components/surveyor/SurveyorEdit";
+import DispatcherSurveyor from "./components/surveyor/DispatcherSurveyor.jsx";
+import SurveyorLiveMap from "./components/surveyor/SurveyorLiveMap.jsx";
+import Surveyors from "./components/surveyor/Surveyors.jsx";
+import SurveyorsInquiry from "./components/surveyor/SurveyorsInquiry.jsx";
+import SurveyorEdit from "./components/surveyor/SurveyorEdit.jsx";
 
 
 //Notifications
-import Notifications from "./components/notification/Notifications";
+import Notifications from "./components/notification/Notifications.jsx";
 
 //Fnol
-import CreateFnol from "./components/Fnol/Fnol";
-import RegisterFNOL from "./components/fnol/RegisterFNOL";
-import FnolDashboard from "./components/fnol/FnolDashboard";
-import FnolInquiry from "./components/fnol/FnolInquiry";
+import CreateFnol from "./components/Fnol/Fnol.jsx";
+import RegisterFNOL from "./components/fnol/RegisterFNOL.jsx";
+import FnolDashboard from "./components/fnol/FnolDashboard.jsx";
+import FnolInquiry from "./components/fnol/FnolInquiry.jsx";
 
 
 
 //Wip
-import WipPage from "./components/WipPage";
+import WipPage from "./components/WipPage.jsx";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
