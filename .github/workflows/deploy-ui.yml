@@ -2,6 +2,7 @@ name: Deploy cmx-ui to S3 + CloudFront
 permissions:
   id-token: write
   contents: read
+
   
 
 on:
