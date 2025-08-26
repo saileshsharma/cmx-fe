@@ -11,14 +11,14 @@ import LoginPage from "./components/LoginPage.jsx";
 import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // Home
-import Home from "./components/Home/Home.jsx";
-import PolicyDashboard from "./components/Home/PolicyDashboard.jsx";
+import Home from "./components/home/Home.jsx";
+import PolicyDashboard from "./components/home/PolicyDashboard.jsx";
 
 //Policy
 import PolicyLookup from "./components/policy/PolicyLookup.jsx";
 
 //Claim
-import ClaimDetail from "./components/Claim/ClaimDetails.jsx";
+import ClaimDetail from "./components/claim/ClaimDetails.jsx";
 import ClaimDetailedView from "./components/claim/ClaimDetailedView.jsx";
 
 //Surveyor
@@ -33,7 +33,7 @@ import SurveyorEdit from "./components/surveyor/SurveyorEdit.jsx";
 import Notifications from "./components/notification/Notifications.jsx";
 
 //Fnol
-import CreateFnol from "./components/Fnol/Fnol.jsx";
+import CreateFnol from "./components/fnol/Fnol.jsx";
 import RegisterFNOL from "./components/fnol/RegisterFNOL.jsx";
 import FnolDashboard from "./components/fnol/FnolDashboard.jsx";
 import FnolInquiry from "./components/fnol/FnolInquiry.jsx";
