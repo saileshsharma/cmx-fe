@@ -1,7 +1,5 @@
 name: Deploy cmx-ui to S3 + CloudFront
 
-arn:aws:iam::933051411734:oidc-provider/token.actions.githubusercontent.com
-
 on:
   push:
     branches: [ main ]
