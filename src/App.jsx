@@ -12,11 +12,10 @@ import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // Home
 import Home from "./components/home/Home.jsx";
-<<<<<<< HEAD
-import PolicyDashboard from "./components/Home/PolicyDashboard.jsx";
-=======
+
+
 import PolicyDashboard from "./components/home/PolicyDashboard.jsx";
->>>>>>> 531e22eeb1fae3e31083797f40cf9f4b7df29294
+
 
 //Policy
 import PolicyLookup from "./components/policy/PolicyLookup.jsx";
