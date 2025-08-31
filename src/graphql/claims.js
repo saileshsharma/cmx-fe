@@ -67,7 +67,7 @@ export const GET_ALL_CLAIMS = gql`
       claimNumber
       incidentDate
       dateReported
-      claimSeverity
+      
       fnol {
         id
         accidentDate

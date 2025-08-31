@@ -11,7 +11,7 @@ import LoginPage from "./components/LoginPage.jsx";
 import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // Home
-import Home from "./components/Home/Home.jsx";
+import Home from "./components/home/Home.jsx";
 import PolicyDashboard from "./components/Home/PolicyDashboard.jsx";
 
 //Policy
