@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState, useEffect } from "react";
-import { useQuery } from "@apollo/client";
+import { useQuery, gql } from "@apollo/client";
 import { useSearchParams } from "react-router-dom";
 import { GET_ALL_POLICIES, GET_POLICY_BY_STATUS } from "../../graphql/policies";
 import {
@@ -8,6 +9,25 @@ import {
   LineChart, Line,
   ScatterChart, Scatter,
 } from "recharts";
+
+/* =========================
+   GraphQL
+   ========================= */
+const GET_CLAIMS_BY_POLICY = gql`
+  query GetClaimsByPolicyNumber($policyNumber: String!) {
+    getClaimsByPolicyNumber(policyNumber: $policyNumber) {
+      id
+      claimNumber
+      status
+      severity
+      createdAt
+      fnol {
+        fnolReferenceNo
+        fnolState
+      }
+    }
+  }
+`;
 
 /* =========================
    Helpers & constants
@@ -108,6 +128,8 @@ export default function PolicyDashboard() {
 
   // Drill-in modal for policy quick view
   const [modalPolicy, setModalPolicy] = useState(null);
+  // Claims history modal (by policy number)
+  const [claimsPolicyNumber, setClaimsPolicyNumber] = useState(null);
 
   // debounce search text → search param
   useEffect(() => {
@@ -482,7 +504,7 @@ export default function PolicyDashboard() {
               checked={openFnolOnly}
               onChange={(e) => setOpenFnolOnly(e.target.checked)}
             />
-            <span className="text-gray-700">Open FNOL only</span>
+            <span className="text-gray-700">Open Claims only</span>
           </label>
 
           {anyFilterActive && (
@@ -578,157 +600,150 @@ export default function PolicyDashboard() {
           {/* OVERVIEW */}
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Horizontal Bar: Policies by Status — Top */}
+              {/* Policies by Status — Top */}
               <Card
-  title="Policies by Status — Top"
-  height={CHART_H}
-  loading={allLoading}
-  right={
-    <div className="flex items-center gap-2">
-      <label className="text-xs text-gray-700 flex items-center gap-1 border rounded-xl px-2 py-1 bg-white">
-        <input
-          type="checkbox"
-          className="accent-violet-600"
-          checked={showPct}
-          onChange={(e) => setShowPct(e.target.checked)}
-        />
-        % of total
-      </label>
-      <select
-        value={String(fromTopN(statusTopN))}
-        onChange={(e) => setStatusTopN(e.target.value === "ALL" ? 0 : Number(e.target.value))}
-        className="border border-violet-200 rounded-xl px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-        title="Show top N statuses"
-      >
-        {["5","8","10","15","ALL"].map(o => (
-          <option key={o} value={o}>
-            {o === "ALL" ? "All" : `Top ${o}`}
-          </option>
-        ))}
-      </select>
-    </div>
-  }
->
-  {statusBars.length ? (
-    <ResponsiveContainer width="100%" height="100%">
-      {/* FLIPPED to vertical bars */}
-      <BarChart
-        data={statusBars}
-        margin={{ left: 8, right: 12, top: 8, bottom: 8 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        {/* Categories on X-axis */}
-        <XAxis
-          dataKey="status"
-          type="category"
-          interval={0}
-          angle={-20}
-          height={compact ? 50 : 60}
-          tickMargin={8}
-        />
-        <YAxis
-          type="number"
-          tickFormatter={(v) => (showPct ? `${v.toFixed(0)}%` : v)}
-          domain={[
-            0,
-            (dataMax) =>
-              showPct
-                ? Math.max(100, Math.ceil(dataMax / 10) * 10)
-                : Math.ceil(dataMax),
-          ]}
-        />
-        <Tooltip
-          wrapperStyle={{ fontSize: 12 }}
-          formatter={(v) =>
-            showPct ? [`${Number(v).toFixed(1)}%`, "% of policies"] : [v, "Policies"]
-          }
-          labelFormatter={(label) => `Status: ${label}`}
-        />
-        <Legend />
-        <Bar
-          dataKey={showPct ? "pct" : "count"}
-          name={showPct ? "% of policies" : "Policies"}
-          fill="#7C3AED"
-          radius={[4, 4, 0, 0]}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  ) : (
-    <Empty />
-  )}
-</Card>
+                title="Policies by Status — Top"
+                height={CHART_H}
+                loading={allLoading}
+                right={
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-700 flex items-center gap-1 border rounded-xl px-2 py-1 bg-white">
+                      <input
+                        type="checkbox"
+                        className="accent-violet-600"
+                        checked={showPct}
+                        onChange={(e) => setShowPct(e.target.checked)}
+                      />
+                      % of total
+                    </label>
+                    <select
+                      value={String(fromTopN(statusTopN))}
+                      onChange={(e) => setStatusTopN(e.target.value === "ALL" ? 0 : Number(e.target.value))}
+                      className="border border-violet-200 rounded-xl px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      title="Show top N statuses"
+                    >
+                      {["5","8","10","15","ALL"].map(o => (
+                        <option key={o} value={o}>
+                          {o === "ALL" ? "All" : `Top ${o}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                }
+              >
+                {statusBars.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {/* vertical bars */}
+                    <BarChart
+                      data={statusBars}
+                      margin={{ left: 8, right: 12, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="status"
+                        type="category"
+                        interval={0}
+                        angle={-20}
+                        height={compact ? 50 : 60}
+                        tickMargin={8}
+                      />
+                      <YAxis
+                        type="number"
+                        tickFormatter={(v) => (showPct ? `${v.toFixed(0)}%` : v)}
+                        domain={[
+                          0,
+                          (dataMax) =>
+                            showPct
+                              ? Math.max(100, Math.ceil(dataMax / 10) * 10)
+                              : Math.ceil(dataMax),
+                        ]}
+                      />
+                      <Tooltip
+                        wrapperStyle={{ fontSize: 12 }}
+                        formatter={(v) =>
+                          showPct ? [`${Number(v).toFixed(1)}%`, "% of policies"] : [v, "Policies"]
+                        }
+                        labelFormatter={(label) => `Status: ${label}`}
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey={showPct ? "pct" : "count"}
+                        name={showPct ? "% of policies" : "Policies"}
+                        fill="#7C3AED"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Empty />
+                )}
+              </Card>
 
-
-              {/* Horizontal Bar: Total Premium by Status — Top */}
-              
-
+              {/* Total Premium by Status — Top */}
               <Card
-  title="Total Premium by Status — Top"
-  height={CHART_H}
-  loading={allLoading}
-  right={
-    <div className="flex items-center gap-2">
-      <label className="text-xs text-gray-700 flex items-center gap-1 border rounded-xl px-2 py-1 bg-white">
-        <input
-          type="checkbox"
-          className="accent-violet-600"
-          checked={showPremiumPct}
-          onChange={(e) => setShowPremiumPct(e.target.checked)}
-        />
-        % of total
-      </label>
-      <select
-        value={String(fromTopN(premiumTopN))}
-        onChange={(e) => setPremiumTopN(e.target.value === "ALL" ? 0 : Number(e.target.value))}
-        className="border border-violet-200 rounded-xl px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-        title="Show top N statuses"
-      >
-        {["5","8","10","15","ALL"].map(o => <option key={o} value={o}>{o === "ALL" ? "All" : `Top ${o}`}</option>)}
-      </select>
-    </div>
-  }
->
-  {premiumBars.length ? (
-    <ResponsiveContainer width="100%" height="100%">
-      {/* FLIPPED to vertical bars (default layout) */}
-      <BarChart
-        data={premiumBars}
-        margin={{ left: 8, right: 12, top: 8, bottom: 8 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        {/* Categories on X now */}
-        <XAxis dataKey="status" type="category" interval={0} angle={-20} height={compact ? 50 : 60} tickMargin={8} />
-        <YAxis
-          type="number"
-          tickFormatter={(v) =>
-            showPremiumPct ? `${v.toFixed(0)}%` : String(formatCurrencyTHB(v)).replace("฿","")
-          }
-          domain={[
-            0,
-            (dataMax) => (showPremiumPct
-              ? Math.max(100, Math.ceil(dataMax / 10) * 10)
-              : Math.ceil(dataMax))
-          ]}
-        />
-        <Tooltip
-          wrapperStyle={{ fontSize: 12 }}
-          formatter={(v) =>
-            showPremiumPct ? [`${Number(v).toFixed(1)}%`, "% of premium"] : [formatCurrencyTHB(v), "Premium"]
-          }
-          labelFormatter={(label) => `Status: ${label}`}
-        />
-        <Legend />
-        <Bar
-          dataKey={showPremiumPct ? "pctPremium" : "premium"}
-          name={showPremiumPct ? "% of premium" : "Premium"}
-          fill="#10B981"
-          radius={[4, 4, 0, 0]}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  ) : (<Empty />)}
-</Card>
-
+                title="Total Premium by Status — Top"
+                height={CHART_H}
+                loading={allLoading}
+                right={
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-700 flex items-center gap-1 border rounded-xl px-2 py-1 bg-white">
+                      <input
+                        type="checkbox"
+                        className="accent-violet-600"
+                        checked={showPremiumPct}
+                        onChange={(e) => setShowPremiumPct(e.target.checked)}
+                      />
+                      % of total
+                    </label>
+                    <select
+                      value={String(fromTopN(premiumTopN))}
+                      onChange={(e) => setPremiumTopN(e.target.value === "ALL" ? 0 : Number(e.target.value))}
+                      className="border border-violet-200 rounded-xl px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                      title="Show top N statuses"
+                    >
+                      {["5","8","10","15","ALL"].map(o => <option key={o} value={o}>{o === "ALL" ? "All" : `Top ${o}`}</option>)}
+                    </select>
+                  </div>
+                }
+              >
+                {premiumBars.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={premiumBars}
+                      margin={{ left: 8, right: 12, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" type="category" interval={0} angle={-20} height={compact ? 50 : 60} tickMargin={8} />
+                      <YAxis
+                        type="number"
+                        tickFormatter={(v) =>
+                          showPremiumPct ? `${v.toFixed(0)}%` : String(formatCurrencyTHB(v)).replace("฿","")
+                        }
+                        domain={[
+                          0,
+                          (dataMax) => (showPremiumPct
+                            ? Math.max(100, Math.ceil(dataMax / 10) * 10)
+                            : Math.ceil(dataMax))
+                        ]}
+                      />
+                      <Tooltip
+                        wrapperStyle={{ fontSize: 12 }}
+                        formatter={(v) =>
+                          showPremiumPct ? [`${Number(v).toFixed(1)}%`, "% of premium"] : [formatCurrencyTHB(v), "Premium"]
+                        }
+                        labelFormatter={(label) => `Status: ${label}`}
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey={showPremiumPct ? "pctPremium" : "premium"}
+                        name={showPremiumPct ? "% of premium" : "Premium"}
+                        fill="#10B981"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (<Empty />)}
+              </Card>
             </div>
           )}
 
@@ -846,7 +861,6 @@ export default function PolicyDashboard() {
                 <KpiCard title="Expiring 0–30/60/90" value={`${statusKpis.exp30}/${statusKpis.exp60}/${statusKpis.exp90}`} color="from-amber-600 to-amber-500 text-white" />
               </div>
 
-              {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card title="Premium vs Sum Insured (Scatter)" height={CHART_H} loading={byStatusLoading}>
                   {scatterPSI.length ? (
@@ -891,21 +905,6 @@ export default function PolicyDashboard() {
                 </Card>
               </div>
 
-              <Card title="Policy Starts (Monthly)" height={CHART_H} loading={byStatusLoading}>
-                {startsByMonth.length ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={startsByMonth}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip wrapperStyle={{ fontSize: 12 }} />
-                      <Legend />
-                      <Line type="monotone" dataKey="count" name="Policies" strokeWidth={2} dot={!compact} stroke="#7C3AED" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (<Empty />)}
-              </Card>
-
               {/* Top by premium list (quick actions) */}
               <div className="bg-white border border-violet-100 rounded-2xl overflow-hidden">
                 <div className="flex items-center justify-between p-3">
@@ -923,6 +922,7 @@ export default function PolicyDashboard() {
                         <Th align="right">Premium</Th>
                         <Th>Start</Th>
                         <Th>End</Th>
+                        <Th align="center">Actions</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -936,9 +936,24 @@ export default function PolicyDashboard() {
                           <Td align="right">{formatCurrencyTHB(p.premium)}</Td>
                           <Td>{fmtDate(p.startDate)}</Td>
                           <Td>{fmtDate(p.endDate)}</Td>
+                          <Td align="center">
+     
+
+                            <button
+  onClick={() => openClaimsFor(p)}
+  className="px-2 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+  title={p?.policyNumber ? "View claims history" : "No policy number"}
+  disabled={!p?.policyNumber}
+>
+  Claims
+</button>
+
+
+
+                          </Td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-500">No policies.</td></tr>
+                        <tr><td colSpan={9} className="px-4 py-6 text-center text-gray-500">No policies.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -984,8 +999,8 @@ export default function PolicyDashboard() {
                     <Th>End</Th>
                     <Th>Insured</Th>
                     <Th>Vehicle</Th>
-                    <Th align="center">Open FNOL</Th>
-                    <Th align="center">Actions</Th>
+                    <Th align="center">Open Claims</Th>
+                    <Th align="center"></Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1025,14 +1040,17 @@ export default function PolicyDashboard() {
                             ) : "0"}
                           </Td>
                           <Td align="center">
-                            <button
-                              onClick={() => console.log("Edit policy", p.id)}
-                              className="px-2 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50"
-                              title="Edit policy"
-                              aria-label={`Edit policy ${p.policyNumber || p.id || ""}`}
-                            >
-                              Edit
-                            </button>
+                            <div className="flex items-center gap-2 justify-center">
+                              <button
+                                onClick={() => setClaimsPolicyNumber(p.policyNumber)}
+                                className="px-2 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50"
+                                title="View claims history"
+                                aria-label={`View claims for ${p.policyNumber || p.id || ""}`}
+                              >
+                                View Claims
+                              </button>
+                             
+                            </div>
                           </Td>
                         </tr>
                       );
@@ -1082,9 +1100,75 @@ export default function PolicyDashboard() {
           </div>
         </Modal>
       )}
+
+      {/* Claims History Modal */}
+      {claimsPolicyNumber && (
+        <Modal
+          onClose={() => setClaimsPolicyNumber(null)}
+          title={`Claims History • ${claimsPolicyNumber}`}
+        >
+          <ClaimsHistory policyNumber={claimsPolicyNumber} />
+        </Modal>
+      )}
     </div>
   );
 }
+
+/* =========================
+   Claims History table
+   ========================= */
+
+
+
+function ClaimsHistory({ policyNumber }) {
+  const { data, loading, error } = useQuery(GET_POLICY_WITH_CLAIMS, {
+    variables: { policyNumber },
+  });
+
+  if (loading) return <p className="text-violet-700">Loading claims…</p>;
+  if (error) return <p className="text-red-600">Failed to load claims.</p>;
+
+  const rows = Array.isArray(data?.getPolicyByNumber?.claims)
+    ? data.getPolicyByNumber.claims
+    : [];
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse border border-violet-100 text-sm">
+        <thead className="bg-violet-50">
+          <tr>
+            <Th>Claim #</Th>
+            <Th>Status</Th>
+            <Th>Severity</Th>
+            <Th>FNOL Ref</Th>
+            <Th>FNOL State</Th>
+            <Th>Created</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? rows.map((c) => (
+            <tr key={c.id ?? c.claimNumber} className="hover:bg-violet-50/40">
+              <Td className="font-medium text-violet-700">{c.claimNumber ?? "-"}</Td>
+              <Td>{c.status ?? "-"}</Td>
+              <Td>{c.severity ?? "-"}</Td>
+              <Td>{c?.fnol?.fnolReferenceNo ?? "-"}</Td>
+              <Td>{c?.fnol?.fnolState ?? "-"}</Td>
+              <Td>{fmtDate(c.createdAt)}</Td>
+            </tr>
+          )) : (
+            <tr>
+              <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
+                No claims found for this policy.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
 
 /* =========================
    Matrix: Status × Policy Type
@@ -1182,6 +1266,24 @@ function Td({ children, align, className = "" }) {
 function Empty() {
   return <p className="text-violet-700 text-sm">No data to chart.</p>;
 }
+
+// Safely open the Claims modal with a usable policy number
+const openClaimsFor = (row) => {
+  const number =
+    row?.policyNumber ??
+    row?.policy?.policyNumber ??
+    null;
+
+  console.debug("[claims] openClaimsFor →", { number, row });
+
+  if (!number) {
+    alert("No policy number on this row. Cannot load claims.");
+    return;
+  }
+  setClaimsPolicyNumber(String(number));
+};
+
+
 
 function Modal({ title, children, onClose }) {
   return (

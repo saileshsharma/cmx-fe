@@ -40,17 +40,24 @@ export const GET_CLAIM_BY_ID = gql`
   }
 `;
 
-/** 3) Update claim status (no unused variables) */
+
 export const UPDATE_CLAIM = gql`
-  mutation UpdateClaimStatus($id: ID!, $status: ClaimStatus!) {
-    updateClaimStatus(id: $id, status: $status) {
+  mutation UpdateClaim($id: ID!, $input: UpdateClaimInput!) {
+    updateClaim(id: $id, input: $input) {
       id
+      claimNumber
       claimStatus
       claimAmount
+      claimSeverity
+      claimDate
       incidentDate
+      dateReported
+      updatedAt
     }
   }
 `;
+
+
 
 /** 4) Get all claims — merged & validated:
  *    - single 'vehicle' selection (no duplicates)
@@ -67,6 +74,7 @@ export const GET_ALL_CLAIMS = gql`
       claimNumber
       incidentDate
       dateReported
+      claimSeverity
       
       fnol {
         id

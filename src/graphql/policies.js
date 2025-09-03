@@ -124,3 +124,25 @@ export const GET_POLICY_BY_ID = gql`
     }
   }
 `;
+
+
+// replace old GET_CLAIMS_BY_POLICY with this
+const GET_POLICY_WITH_CLAIMS = gql`
+  query GetPolicyWithClaims($policyNumber: String!) {
+    getPolicyByNumber(policyNumber: $policyNumber) {
+      id
+      policyNumber
+      claims {
+        id
+        claimNumber
+        status
+        severity
+        createdAt
+        fnol {
+          fnolReferenceNo
+          fnolState
+        }
+      }
+    }
+  }
+`;

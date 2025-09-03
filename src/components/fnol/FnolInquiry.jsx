@@ -234,8 +234,27 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
   };
   const removeAt = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
-  const fnolRef = fnol?.id ? String(fnol.id) : null;
-  const url = fnolRef ? `${UPLOADER_URL}/api/fnol/${encodeURIComponent(fnolRef)}/images` : null;
+
+
+// Prefer business ref; fall back to id
+const fnolRef = (fnol?.fnolReferenceNo || fnol?.id)
+  ? String(fnol.fnolReferenceNo || fnol.id)
+  : null;
+
+// Normalize base URL (remove trailing slash)
+const base = String(UPLOADER_URL || "").replace(/\/+$/, "");
+
+// Correct endpoint: /api/fnol/<ref>/images   (no curly braces!)
+const url = fnolRef ? `${base}/api/fnol/${encodeURIComponent(fnolRef)}/images` : null;
+
+console.debug("[uploader] POST", url, "ref=", fnolRef);
+
+
+
+
+
+
+
 
   const uploadOne = async (file) => {
     if (!url || !fnolRef) throw new Error("Missing FNOL reference");
@@ -682,7 +701,7 @@ function FnolInquiryInner() {
             <button onClick={handleUpdateSelected} disabled={!selectedRow}
                     className="px-3 py-2 rounded-lg font-medium shadow text-white disabled:opacity-50"
                     style={{ background: "var(--brand-primary-dark)" }} title={!selectedRow ? "Select a FNOL row to update" : "Go to edit page"}>
-              Update Selected
+              Assign Surveyor
             </button>
             <button onClick={() => setUploadOpen(true)} disabled={!selectedRow}
                     className="px-3 py-2 rounded-lg font-medium shadow text-white disabled:opacity-50"
