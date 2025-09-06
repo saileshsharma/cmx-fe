@@ -16,20 +16,35 @@ const SHOULD_ATTACH = String(import.meta.env.VITE_ATTACH_MEDIA || "1") === "1";
 /* =========================
    GraphQL - Mutations
    ========================= */
-const UPDATE_CLAIM = gql`
+
+
+
+
+export const UPDATE_CLAIM = gql`
   mutation UpdateClaim($id: ID!, $input: UpdateClaimInput!) {
     updateClaim(id: $id, input: $input) {
       id
       claimNumber
-      claimStatus
+      claimStatus       # ✅ exists
+      claimSeverity     # ✅ exists
       claimAmount
-      claimSeverity
-      claimDate
       incidentDate
+      claimDate
       dateReported
+      location
+      createdAt         # ✅ exists (no updatedAt in your SDL)
+      fnol {
+        id
+        fnolReferenceNo
+        fnolState
+      }
     }
   }
 `;
+
+
+
+
 
 /** NEW: Duplicate mutation (adjust to your API if needed) */
 const DUPLICATE_CLAIM = gql`

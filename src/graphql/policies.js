@@ -146,3 +146,40 @@ const GET_POLICY_WITH_CLAIMS = gql`
     }
   }
 `;
+
+
+
+export const POLICY_BY_LICENSE_PLATE = gql`
+  query PolicyByLicensePlate($plate: String!) {
+    policyByLicensePlate(plate: $plate) {
+      policyId
+      vehicleId
+      policyNumber
+      policyStatus
+      coverageType
+      startDate
+      endDate
+      insuredName
+      registrationNumber
+    }
+  }
+`;
+
+export const POLICIES_BY_LICENSE_PLATE = gql`
+  query PoliciesByLicensePlate($plate: String!, $includeInactive: Boolean) {
+    policiesByLicensePlate(plate: $plate, includeInactive: $includeInactive) {
+      policyId
+      vehicleId
+      policyNumber
+      policyStatus
+      coverageType
+      startDate
+      endDate
+      insuredName
+      registrationNumber
+    }
+  }
+`;
+
+
+

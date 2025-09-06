@@ -5,7 +5,7 @@ import { gql, useMutation, useSubscription } from "@apollo/client";
 import { GoogleMap, MarkerF, Autocomplete, useLoadScript } from "@react-google-maps/api";
 
 /* =========================================================================
-   Subscription: Surveyor assignment notice for a given FNOL reference
+   GraphQL
    ========================================================================= */
 const FNOL_ASSIGNMENT_NOTICE = gql`
   subscription FnolAssignmentNotice($fnolReferenceNo: String!) {
@@ -18,9 +18,6 @@ const FNOL_ASSIGNMENT_NOTICE = gql`
   }
 `;
 
-/* =========================================================================
-   Mutations
-   ========================================================================= */
 const CREATE_FNOL = gql`
   mutation CreateFnol(
     $policyNumber: String!
@@ -107,8 +104,20 @@ const localInputToIsoWithOffset = (localInputStr) => {
   const offM = pad2(Math.abs(tzMin) % 60);
   return `${yyyy}-${MM}-${DD}T${HH}:${mm}:${ss}${sign}${offH}:${offM}`;
 };
-const canRegister = (status) => status === "BIND" || status === "IN_FORCE";
+
+const normStatus = (s) => String(s || "").trim().toUpperCase().replace(/\s+/g, "_");
+const canRegister = (status) => {
+  const v = normStatus(status);
+  return v === "BIND" || v === "IN_FORCE";
+};
 const normalizeRegistration = (raw) => (raw || "").replace(/[-\s]/g, "").toUpperCase().trim();
+
+/** Map our suggestion (HIGH/MEDIUM/LOW) -> backend enum ("High"/"Medium"/"Low") */
+const SEVERITY_MAP = {
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+};
 
 const SEVERITY_OPTIONS = [
   { label: "High", value: "High" },
@@ -116,6 +125,7 @@ const SEVERITY_OPTIONS = [
   { label: "Low", value: "Low" },
 ];
 
+// SG center; change if your primary market differs
 const SG_DEFAULT = { lat: 1.3521, lng: 103.8198 };
 const MAP_LIBRARIES = ["places"];
 
@@ -140,25 +150,13 @@ function computeSeveritySuggestion(usageType, description) {
     "unconscious",
   ];
   if (strong.some((s) => txt.includes(s)))
-    return { value: "High", reason: "Keywords indicating injuries or severe impact." };
+    return { value: "HIGH", reason: "Keywords indicating injuries or severe impact." };
   const commercialish = /(commercial|taxi|ride|delivery|logistics|bus|van|fleet)/i.test(usageType || "");
-  let base = commercialish ? "Medium" : "Low";
+  let base = commercialish ? "MEDIUM" : "LOW";
   let reason = commercialish ? "Commercial usage generally implies higher exposure." : "No high-risk indicators detected.";
-  const moderate = [
-    "towed",
-    "heavy damage",
-    "hit and run",
-    "multi",
-    "pile",
-    "highway",
-    "expressway",
-    "police",
-    "intersection",
-    "rear-ended",
-    "rear ended",
-  ];
+  const moderate = ["towed", "heavy damage", "hit and run", "multi", "pile", "highway", "expressway", "police", "intersection", "rear-ended", "rear ended"];
   if (moderate.some((s) => txt.includes(s))) {
-    if (base === "Low") base = "Medium";
+    if (base === "LOW") base = "MEDIUM";
     reason = "Context suggests notable impact (e.g., tow/police/highway).";
   }
   return { value: base, reason };
@@ -172,14 +170,12 @@ function componentsToAddress(ac) {
   const comps = ac?.address_components || [];
   const streetNum = pick(comps, "street_number")?.long_name || "";
   const route = pick(comps, "route")?.long_name || "";
-  const sublocality =
-    pick(comps, "sublocality", "sublocality_level_1")?.long_name || pick(comps, "neighborhood")?.long_name || "";
+  const sublocality = pick(comps, "sublocality", "sublocality_level_1")?.long_name || pick(comps, "neighborhood")?.long_name || "";
   const locality = pick(comps, "locality")?.long_name || "";
   const admin1 = pick(comps, "administrative_area_level_1")?.long_name || "";
   const postal = pick(comps, "postal_code")?.long_name || "";
   const countryLong = pick(comps, "country")?.long_name || "";
   const countryShort = pick(comps, "country")?.short_name || "";
-
   const line1FromStreet = [streetNum, route].filter(Boolean).join(" ").trim();
 
   return {
@@ -188,12 +184,12 @@ function componentsToAddress(ac) {
     city: locality || "",
     province: admin1 || "",
     postalCode: postal || "",
-    country: countryLong || countryShort || "Thailand",
+    country: countryLong || countryShort || "Singapore",
   };
 }
 
 /* =========================================================================
-   Dirty form guard
+   Dirty form guard (browser-level only)
    ========================================================================= */
 function useUnsavedChangesWarning(shouldBlock) {
   useEffect(() => {
@@ -206,15 +202,6 @@ function useUnsavedChangesWarning(shouldBlock) {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [shouldBlock]);
-
-  try {
-    // eslint-disable-next-line no-undef
-    const { unstable_useBlocker } = require("react-router-dom");
-    if (unstable_useBlocker) {
-      // eslint-disable-next-line react-hooks/rules-of-hooks
-      unstable_useBlocker(shouldBlock);
-    }
-  } catch (_) {}
 }
 
 /* =========================================================================
@@ -295,11 +282,9 @@ function LocationPicker({ value, onChange, onGeocodingChange }) {
   const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: mapsKey, libraries: MAP_LIBRARIES });
 
   const geocoder = useMemo(() => {
-    try {
-      return isLoaded ? new google.maps.Geocoder() : null;
-    } catch {
-      return null;
-    }
+    const g = typeof window !== "undefined" ? window.google : undefined;
+    if (!isLoaded || !g?.maps?.Geocoder) return null;
+    return new g.maps.Geocoder();
   }, [isLoaded]);
 
   const emit = useCallback((next) => onChange?.(next), [onChange]);
@@ -321,8 +306,8 @@ function LocationPicker({ value, onChange, onGeocodingChange }) {
     const place = acRef.current?.getPlace?.();
     if (!place || !place.geometry) return;
     const loc = place.geometry.location;
-    const lat = loc.lat(),
-      lng = loc.lng();
+    const lat = loc.lat();
+    const lng = loc.lng();
 
     const formattedAddress = place.formatted_address || place.name || "";
     const pid = place.place_id || "";
@@ -343,15 +328,15 @@ function LocationPicker({ value, onChange, onGeocodingChange }) {
       city: parts.city,
       province: parts.province,
       postalCode: parts.postalCode,
-      country: parts.country || value?.country || "Thailand",
+      country: parts.country || value?.country || "Singapore",
     });
 
     mapRef.current?.panTo({ lat, lng });
   };
 
   const handleDragEnd = (e) => {
-    const lat = e.latLng.lat(),
-      lng = e.latLng.lng();
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
     setMarker({ lat, lng });
     setCenter({ lat, lng });
 
@@ -396,8 +381,8 @@ function LocationPicker({ value, onChange, onGeocodingChange }) {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude,
-          lng = pos.coords.longitude;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
         setCenter({ lat, lng });
         setMarker({ lat, lng });
         emit({ ...value, lat, lng });
@@ -435,17 +420,12 @@ function LocationPicker({ value, onChange, onGeocodingChange }) {
           <input
             type="text"
             placeholder="Search location"
-            className="flex-1 p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+            className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-300"
             defaultValue={addr}
             aria-label="Search accident location"
           />
         </Autocomplete>
-        <button
-          type="button"
-          onClick={useMyLocation}
-          className="px-3 py-2 rounded border hover:bg-gray-50"
-          aria-label="Use my current location"
-        >
+        <button type="button" onClick={useMyLocation} className="px-3 py-2 rounded border hover:bg-gray-50" aria-label="Use my current location">
           Use my location
         </button>
       </div>
@@ -481,7 +461,7 @@ function AddressInputs({ data, setData, errors, setTouched }) {
     onBlur: () => setTouched((t) => ({ ...t, [key]: true })),
   });
   const cls = (key) =>
-    `w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue ${errors[key] ? "border-red-500" : "border-gray-300"}`;
+    `w-full p-2 border rounded focus:ring-2 focus:ring-blue-300 ${errors[key] ? "border-red-500" : "border-gray-300"}`;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -507,7 +487,7 @@ function AddressInputs({ data, setData, errors, setTouched }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Province/State</label>
+        <label className="block text sm font-medium text-gray-700">Province/State</label>
         <input className={cls("province")} placeholder="Province / State" {...bind("province")} />
       </div>
 
@@ -540,17 +520,20 @@ export default function Fnol() {
   const navigate = useNavigate();
   const { state } = useLocation();
 
+  // If user landed here without policy context, push them back to search/lookup.
   useEffect(() => {
     if (!state) navigate("/policy-lookup", { replace: true });
   }, [state, navigate]);
   if (!state) return null;
 
-  const policyStatus = state?.policyStatus;
-  const eligible = canRegister(policyStatus);
+  // Normalize status for eligibility
+  const rawStatus = state?.policyStatus;
+  const normalizedStatus = normStatus(rawStatus);
+  const eligible = canRegister(rawStatus);
 
   const [accidentDateTimeLocal, setAccidentDateTimeLocal] = useState(toLocalDatetimeInput(new Date()));
   const [description, setDescription] = useState("");
-  const [severity, setSeverity] = useState(SEVERITY_OPTIONS[1].value);
+  const [severity, setSeverity] = useState("Medium"); // backend expects "High|Medium|Low"
   const [severityTouched, setSeverityTouched] = useState(false);
   const [severitySuggestion, setSeveritySuggestion] = useState(null);
 
@@ -622,7 +605,10 @@ export default function Fnol() {
     const usage = state?.vehicle?.usageType || state?.vehicle?.usage_type;
     const suggestion = computeSeveritySuggestion(usage, description);
     setSeveritySuggestion(suggestion);
-    if (!severityTouched && suggestion?.value) setSeverity(suggestion.value);
+    if (!severityTouched && suggestion?.value) {
+      const mapped = SEVERITY_MAP[suggestion.value] || "Medium";
+      setSeverity(mapped);
+    }
   }, [state?.vehicle?.usageType, state?.vehicle?.usage_type, description, severityTouched]);
 
   const [accidentLocationId, setAccidentLocationId] = useState("");
@@ -635,7 +621,7 @@ export default function Fnol() {
     city: "",
     province: "",
     postalCode: "",
-    country: "Thailand",
+    country: "Singapore",
   });
 
   const [addrErrors, setAddrErrors] = useState({});
@@ -692,7 +678,7 @@ export default function Fnol() {
       city: locationData?.city || null,
       province: locationData?.province || null,
       postalCode: locationData?.postalCode || null,
-      country: locationData?.country || "Thailand",
+      country: locationData?.country || "Singapore",
       latitude,
       longitude,
       googlePlaceId: locationData?.placeId || null,
@@ -755,7 +741,7 @@ export default function Fnol() {
         province: true,
         postalCode: true,
       });
-      setToast({ show: true, kind: "error", text: "Please fix the highlighted address fields." });
+      setToast({ show: true, kind: "error", text: !eligible ? "Policy status is not eligible for FNOL." : "Please fix the highlighted address fields." });
       return;
     }
 
@@ -807,7 +793,7 @@ export default function Fnol() {
           registrationNumber: normalizedReg,
           accidentLocationId: locationIdToUse,
           description: description.trim(),
-          severity,
+          severity, // "High" | "Medium" | "Low" as expected by backend enum
           accidentDate: isoWithOffset,
         },
       });
@@ -874,7 +860,7 @@ export default function Fnol() {
         <div className="bg-white h-full rounded-lg shadow-md flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-xl md:text-2xl font-semibold text-chubb-blue">📝 Create FNOL</h2>
+            <h2 className="text-xl md:text-2xl font-semibold text-blue-800">📝 Create FNOL</h2>
             <div className="flex items-center gap-3">
               {assignNotice && (
                 <span
@@ -890,11 +876,7 @@ export default function Fnol() {
                   Assignment: {assignNotice.status ?? "PENDING"}
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="px-3 py-2 rounded border text-gray-700 hover:bg-gray-50"
-              >
+              <button type="button" onClick={() => navigate(-1)} className="px-3 py-2 rounded border text-gray-700 hover:bg-gray-50">
                 Back
               </button>
             </div>
@@ -902,25 +884,28 @@ export default function Fnol() {
 
           {/* Content */}
           <div className="flex-1 overflow-auto p-4 space-y-6">
-            {!eligible && (
-              <div className="text-sm text-red-700 bg-red-50 border border-red-200 p-3 rounded">
-                ⚠️ FNOL allowed only when status is <b>BIND</b> or <b>IN_FORCE</b>. Current: <b>{policyStatus ?? "-"}</b>.
-              </div>
-            )}
+            {/* Eligibility banner */}
+            {rawStatus
+              ? !eligible && (
+                  <div className="text-sm text-red-700 bg-red-50 border border-red-200 p-3 rounded">
+                    ⚠️ FNOL allowed only when status is <b>BIND</b> or <b>IN_FORCE</b>. Current: <b>{normalizedStatus}</b>.
+                  </div>
+                )
+              : (
+                <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 p-3 rounded">
+                  ℹ️ Policy status not provided by the previous page. You can still fill the form, but submission requires an eligible policy.
+                </div>
+              )}
 
             {/* Policy */}
             <InfoCard title="Policy Details">
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 <Field label="Policy Number">
                   <div className="max-w-sm">
-                    <PolicyNumberField
-                      value={policyNumberVal}
-                      onChange={setPolicyNumberVal}
-                      locked={Boolean(state?.policyNumber)}
-                    />
+                    <PolicyNumberField value={policyNumberVal} onChange={setPolicyNumberVal} locked={Boolean(state?.policyNumber)} />
                   </div>
                 </Field>
-                <Field label="Status">{state?.policyStatus ?? "-"}</Field>
+                <Field label="Status">{rawStatus ? normalizedStatus : "—"}</Field>
                 <Field label="Type">{state?.policyType ?? "-"}</Field>
                 <Field label="Start Date">{safeDate(state?.startDate)}</Field>
                 <Field label="End Date">{safeDate(state?.endDate)}</Field>
@@ -930,9 +915,7 @@ export default function Fnol() {
             {/* Insured */}
             <InfoCard title="Insured Details">
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                <Field label="Name">
-                  {(state?.insured?.firstName ?? "-") + " " + (state?.insured?.lastName ?? "-")}
-                </Field>
+                <Field label="Name">{(state?.insured?.firstName ?? "-") + " " + (state?.insured?.lastName ?? "-")}</Field>
                 <Field label="Email">{state?.insured?.email ?? "-"}</Field>
                 <Field label="Phone Number">{state?.insured?.phoneNumber ?? "-"}</Field>
               </dl>
@@ -946,9 +929,7 @@ export default function Fnol() {
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                   <Field label="Registration Number">{state.vehicle.registrationNumber ?? "-"}</Field>
                   <Field label="Chassis Number">{state.vehicle.chassis ?? "-"}</Field>
-                  <Field label="Make / Model">
-                    {(state.vehicle.make ?? "-") + " " + (state.vehicle.model ?? "")}
-                  </Field>
+                  <Field label="Make / Model">{(state.vehicle.make ?? "-") + " " + (state.vehicle.model ?? "")}</Field>
                   <Field label="Year">{state.vehicle.year ?? "-"}</Field>
                   <Field label="Usage Type">{state.vehicle.usageType ?? "-"}</Field>
                   <Field label="Engine">{state.vehicle.engineNo ?? "-"}</Field>
@@ -972,14 +953,12 @@ export default function Fnol() {
                   value={registrationNumber}
                   onChange={(e) => setRegistrationNumber(e.target.value)}
                   onBlur={(e) => setRegistrationNumber(normalizeRegistration(e.target.value))}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-300"
                   placeholder="e.g., SGP1234A"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">This will be validated against the selected policy.</p>
-                {!normalizedReg && (
-                  <div className="text-xs text-rose-700 mt-1">Please enter a valid registration number.</div>
-                )}
+                {!normalizedReg && <div className="text-xs text-rose-700 mt-1">Please enter a valid registration number.</div>}
               </div>
 
               {/* Single date & time picker */}
@@ -992,12 +971,10 @@ export default function Fnol() {
                   type="datetime-local"
                   value={accidentDateTimeLocal}
                   onChange={(e) => setAccidentDateTimeLocal(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-300"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  This will be sent as a single timestamp (with timezone offset) to the server.
-                </p>
+                <p className="text-xs text-gray-500 mt-1">This will be sent as a single timestamp (with timezone offset) to the server.</p>
               </div>
 
               {/* Severity */}
@@ -1017,10 +994,10 @@ export default function Fnol() {
                   id="severity"
                   value={severity}
                   onChange={(e) => {
-                    setSeverity(e.target.value);
+                    setSeverity(e.target.value); // "High" | "Medium" | "Low"
                     setSeverityTouched(true);
                   }}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-300"
                 >
                   {SEVERITY_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -1030,15 +1007,15 @@ export default function Fnol() {
                 </select>
                 {severitySuggestion && (
                   <div className="text-xs text-gray-500 mt-1" aria-live="polite">
-                    Suggested: <b>{severitySuggestion.value}</b> — {severitySuggestion.reason}
-                    {severity !== severitySuggestion.value && (
+                    Suggested: <b>{SEVERITY_MAP[severitySuggestion.value] || "Medium"}</b> — {severitySuggestion.reason}
+                    {severity !== (SEVERITY_MAP[severitySuggestion.value] || "Medium") && (
                       <button
                         type="button"
                         onClick={() => {
-                          setSeverity(severitySuggestion.value);
+                          setSeverity(SEVERITY_MAP[severitySuggestion.value] || "Medium");
                           setSeverityTouched(false);
                         }}
-                        className="ml-2 text-chubb-blue underline"
+                        className="ml-2 text-blue-700 underline"
                       >
                         Use suggestion
                       </button>
@@ -1069,7 +1046,7 @@ export default function Fnol() {
                       type="text"
                       value={accidentLocationId}
                       onChange={(e) => setAccidentLocationId(e.target.value)}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-300"
                       placeholder="Address ID (if known)"
                       aria-label="Existing Address ID"
                     />
@@ -1094,12 +1071,7 @@ export default function Fnol() {
                           Please correct the highlighted address fields.
                         </div>
                       )}
-                    <AddressInputs
-                      data={locationData}
-                      setData={setLocationData}
-                      errors={addrErrors}
-                      setTouched={setAddrTouched}
-                    />
+                    <AddressInputs data={locationData} setData={setLocationData} errors={addrErrors} setTouched={setAddrTouched} />
                   </>
                 )}
 
@@ -1121,7 +1093,7 @@ export default function Fnol() {
                   id="desc"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-chubb-blue"
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-300"
                   rows={4}
                   placeholder="Briefly describe the incident"
                   required
@@ -1132,9 +1104,7 @@ export default function Fnol() {
                 type="submit"
                 disabled={formInvalid || creating}
                 className={`w-full px-4 py-2 rounded shadow ${
-                  !(formInvalid || creating)
-                    ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-gray-400 cursor-not-allowed text-white"
+                  !(formInvalid || creating) ? "bg-green-600 hover:bg-green-700 text-white" : "bg-gray-400 cursor-not-allowed text-white"
                 }`}
               >
                 {creating ? (geocoding ? "Reverse geocoding location…" : "Submitting…") : "Submit FNOL"}
@@ -1148,19 +1118,13 @@ export default function Fnol() {
       {toast.show && (
         <div
           className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-start gap-3 ${
-            toast.kind === "success"
-              ? "bg-green-600 text-white"
-              : toast.kind === "error"
-              ? "bg-red-600 text-white"
-              : "bg-gray-800 text-white"
+            toast.kind === "success" ? "bg-green-600 text-white" : toast.kind === "error" ? "bg-red-600 text-white" : "bg-gray-800 text-white"
           }`}
           role="status"
           ref={toastRef}
           tabIndex={-1}
         >
-          <div className="font-semibold">
-            {toast.kind === "success" ? "Success" : toast.kind === "error" ? "Error" : "Info"}
-          </div>
+          <div className="font-semibold">{toast.kind === "success" ? "Success" : toast.kind === "error" ? "Error" : "Info"}</div>
           <div className="opacity-95">{toast.text}</div>
           <button className="ml-2 underline" onClick={() => setToast((t) => ({ ...t, show: false }))} type="button">
             Dismiss
@@ -1172,24 +1136,14 @@ export default function Fnol() {
           FNOL Created Dialog
           ======================================= */}
       {showDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-labelledby="fnol-dialog-title"
-          aria-modal="true"
-          role="dialog"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center" aria-labelledby="fnol-dialog-title" aria-modal="true" role="dialog">
           <div className="absolute inset-0 bg-black/40" onClick={closeDialogAndGoInquiry} />
           <div className="relative bg-white rounded-2xl shadow-xl w-[95%] max-w-2xl mx-auto p-6">
             <div className="flex items-start justify-between mb-4">
-              <h3 id="fnol-dialog-title" className="text-xl font-semibold text-chubb-blue">
+              <h3 id="fnol-dialog-title" className="text-xl font-semibold text-blue-800">
                 ✅ FNOL Created
               </h3>
-              <button
-                type="button"
-                className="text-gray-500 hover:text-gray-700"
-                aria-label="Close"
-                onClick={closeDialogAndGoInquiry}
-              >
+              <button type="button" className="text-gray-500 hover:text-gray-700" aria-label="Close" onClick={closeDialogAndGoInquiry}>
                 ✕
               </button>
             </div>
@@ -1198,9 +1152,7 @@ export default function Fnol() {
               {assignNotice && (
                 <div
                   className={`p-3 rounded border text-sm ${
-                    assignNotice.status === "FAILED"
-                      ? "bg-red-50 border-red-200 text-red-800"
-                      : "bg-green-50 border-green-200 text-green-800"
+                    assignNotice.status === "FAILED" ? "bg-red-50 border-red-200 text-red-800" : "bg-green-50 border-green-200 text-green-800"
                   }`}
                 >
                   {assignNotice.message || "Assignment update received."}
@@ -1218,9 +1170,7 @@ export default function Fnol() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Accident Date</div>
-                  <div className="font-medium">
-                    {createdFnol?.accidentDate ?? localInputToIsoWithOffset(accidentDateTimeLocal)}
-                  </div>
+                  <div className="font-medium">{createdFnol?.accidentDate ?? localInputToIsoWithOffset(accidentDateTimeLocal)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Severity</div>
@@ -1235,72 +1185,15 @@ export default function Fnol() {
 
               <div className="p-4 rounded-lg border bg-gray-50">
                 <div className="text-sm font-semibold text-gray-800 mb-2">Accident Location (Address)</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-500">Address ID:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.id ?? "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Place ID:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.googlePlaceId || "-"}</span>
-                  </div>
-                  <div className="md:col-span-2">
-                    <span className="text-gray-500">Line 1:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.addressLine1 || "-"}</span>
-                  </div>
-                  <div className="md:col-span-2">
-                    <span className="text-gray-500">Line 2:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.addressLine2 || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">City:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.city || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Province:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.province || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Postal Code:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.postalCode || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Country:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.country || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Latitude:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.latitude ?? "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Longitude:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.longitude ?? "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Location Type:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.locationType || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Created At:</span>{" "}
-                    <span className="font-medium">{confirmAddress?.createdAt || "-"}</span>
-                  </div>
-                </div>
+                <ConfirmAddress addressObj={createdFnol?.accidentLocation} fallback={locationData} />
               </div>
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
-              <button
-                type="button"
-                className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50"
-                onClick={closeDialogAndGoInquiry}
-              >
+              <button type="button" className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50" onClick={closeDialogAndGoInquiry}>
                 Close
               </button>
-              <button
-                type="button"
-                className="px-4 py-2 rounded bg-chubb-blue text-white hover:brightness-110"
-                onClick={() => navigate("/fnol-inquiry", { replace: true })}
-              >
+              <button type="button" className="px-4 py-2 rounded bg-blue-700 text-white hover:brightness-110" onClick={() => navigate("/fnol-inquiry", { replace: true })}>
                 Go to FNOL Inquiry
               </button>
             </div>
@@ -1312,24 +1205,14 @@ export default function Fnol() {
           Backend Error Dialog
           ======================================= */}
       {showErrorDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-labelledby="fnol-error-title"
-          aria-modal="true"
-          role="dialog"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center" aria-labelledby="fnol-error-title" aria-modal="true" role="dialog">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowErrorDialog(false)} />
           <div className="relative bg-white rounded-2xl shadow-xl w-[95%] max-w-xl mx-auto p-6">
             <div className="flex items-start justify-between mb-4">
               <h3 id="fnol-error-title" className="text-xl font-semibold text-red-600">
                 ❌ {errorInfo.title || "Error"}
               </h3>
-              <button
-                type="button"
-                className="text-gray-500 hover:text-gray-700"
-                aria-label="Close"
-                onClick={() => setShowErrorDialog(false)}
-              >
+              <button type="button" className="text-gray-500 hover:text-gray-700" aria-label="Close" onClick={() => setShowErrorDialog(false)}>
                 ✕
               </button>
             </div>
@@ -1339,39 +1222,22 @@ export default function Fnol() {
                 {errorInfo.friendly || "Something went wrong while creating the FNOL."}
               </div>
 
-              <button
-                type="button"
-                className="text-sm underline text-gray-700"
-                onClick={() => setShowTech((v) => !v)}
-                aria-expanded={showTech}
-                aria-controls="error-tech-details"
-              >
+              <button type="button" className="text-sm underline text-gray-700" onClick={() => setShowTech((v) => !v)} aria-expanded={showTech} aria-controls="error-tech-details">
                 {showTech ? "Hide technical details" : "Show technical details"}
               </button>
 
               {showTech && (
-                <pre
-                  id="error-tech-details"
-                  className="whitespace-pre-wrap text-xs p-3 rounded bg-gray-50 border border-gray-200 overflow-auto max-h-56"
-                >
+                <pre id="error-tech-details" className="whitespace-pre-wrap text-xs p-3 rounded bg-gray-50 border border-gray-200 overflow-auto max-h-56">
 {errorInfo.tech}
                 </pre>
               )}
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-end">
-              <button
-                type="button"
-                className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50"
-                onClick={() => setShowErrorDialog(false)}
-              >
+              <button type="button" className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50" onClick={() => setShowErrorDialog(false)}>
                 Dismiss
               </button>
-              <button
-                type="button"
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
-                onClick={retryFromError}
-              >
+              <button type="button" className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700" onClick={retryFromError}>
                 Try Again
               </button>
             </div>
@@ -1383,8 +1249,48 @@ export default function Fnol() {
 }
 
 /* =========================================================================
-   Small subcomponent: policy number with “unlock” toggle
+   Subcomponents
    ========================================================================= */
+function ConfirmAddress({ addressObj, fallback }) {
+  const a = addressObj?.id ? addressObj : {
+    id: "(local)",
+    addressLine1: fallback.addressLine1 || fallback.formattedAddress || "",
+    addressLine2: fallback.addressLine2 || "",
+    city: fallback.city || "",
+    province: fallback.province || "",
+    postalCode: fallback.postalCode || "",
+    country: fallback.country || "",
+    latitude: fallback.lat,
+    longitude: fallback.lng,
+    googlePlaceId: fallback.placeId || "",
+    locationType: "ACCIDENT_SITE",
+    createdAt: "",
+  };
+
+  const Row = ({ label, value }) => (
+    <div>
+      <span className="text-gray-500">{label}:</span> <span className="font-medium">{value ?? "-"}</span>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+      <Row label="Address ID" value={a.id} />
+      <Row label="Place ID" value={a.googlePlaceId} />
+      <div className="md:col-span-2"><Row label="Line 1" value={a.addressLine1} /></div>
+      <div className="md:col-span-2"><Row label="Line 2" value={a.addressLine2} /></div>
+      <Row label="City" value={a.city} />
+      <Row label="Province" value={a.province} />
+      <Row label="Postal Code" value={a.postalCode} />
+      <Row label="Country" value={a.country} />
+      <Row label="Latitude" value={a.latitude} />
+      <Row label="Longitude" value={a.longitude} />
+      <Row label="Location Type" value={a.locationType} />
+      <Row label="Created At" value={a.createdAt} />
+    </div>
+  );
+}
+
 function PolicyNumberField({ value, onChange, locked }) {
   const [editing, setEditing] = useState(!locked);
   return (
@@ -1392,12 +1298,7 @@ function PolicyNumberField({ value, onChange, locked }) {
       <span className="font-medium">Number:</span>
       {editing ? (
         <>
-          <input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="p-1 border rounded flex-1"
-            placeholder="Enter policy number"
-          />
+          <input value={value} onChange={(e) => onChange(e.target.value)} className="p-1 border rounded flex-1" placeholder="Enter policy number" />
           {locked && (
             <button type="button" className="text-sm underline" onClick={() => setEditing(false)} title="Lock">
               Lock
@@ -1407,12 +1308,7 @@ function PolicyNumberField({ value, onChange, locked }) {
       ) : (
         <>
           <span>{value}</span>
-          <button
-            type="button"
-            className="text-sm underline"
-            onClick={() => setEditing(true)}
-            title="Change policy number"
-          >
+          <button type="button" className="text-sm underline" onClick={() => setEditing(true)} title="Change policy number">
             Change
           </button>
         </>
@@ -1421,13 +1317,10 @@ function PolicyNumberField({ value, onChange, locked }) {
   );
 }
 
-/* =========================
-   Reusable Card + Field
-   ========================= */
 function InfoCard({ title, children }) {
   return (
     <section className="p-6 rounded-2xl border bg-white shadow-sm hover:shadow-md transition-shadow">
-      <h3 className="font-semibold text-xl mb-4 text-chubb-darkBlue border-b pb-2">{title}</h3>
+      <h3 className="font-semibold text-xl mb-4 text-blue-900 border-b pb-2">{title}</h3>
       {children}
     </section>
   );

@@ -3,47 +3,44 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { ApolloProvider } from "@apollo/client";
 import client from "./apolloClient";
 
-
 // Login
 import LoginPage from "./components/LoginPage.jsx";
 
-//Auth
+// Auth
 import ProtectedLayout from "./components/ProtectedLayout.jsx";
 
 // Home
 import Home from "./components/home/Home.jsx";
-
-
 import PolicyDashboard from "./components/home/PolicyDashboard.jsx";
 
-
-//Policy
+// Policy
 import PolicyLookup from "./components/policy/PolicyLookup.jsx";
 
-//Claim
+// Claim
 import ClaimDetail from "./components/claim/ClaimDetails.jsx";
 import ClaimDetailedView from "./components/claim/ClaimDetailedView.jsx";
 
-//Surveyor
+// Surveyor
 import DispatcherSurveyor from "./components/surveyor/DispatcherSurveyor.jsx";
 import SurveyorLiveMap from "./components/surveyor/SurveyorLiveMap.jsx";
 import Surveyors from "./components/surveyor/Surveyors.jsx";
 import SurveyorsInquiry from "./components/surveyor/SurveyorsInquiry.jsx";
 import SurveyorEdit from "./components/surveyor/SurveyorEdit.jsx";
 
-
-//Notifications
+// Notifications
 import Notifications from "./components/notification/Notifications.jsx";
 
-//Fnol
+// FNOL
 import CreateFnol from "./components/fnol/Fnol.jsx";
 import RegisterFNOL from "./components/fnol/RegisterFNOL.jsx";
 import FnolDashboard from "./components/fnol/FnolDashboard.jsx";
 import FnolInquiry from "./components/fnol/FnolInquiry.jsx";
 
+// NEW: unified search + details
+import PolicySearch from "./components/fnol/PolicySearch.jsx";
+import PolicyDetails from "./components/fnol/PolicyDetails.jsx";
 
-
-//Wip
+// WIP
 import WipPage from "./components/WipPage.jsx";
 
 export default function App() {
@@ -75,15 +72,17 @@ export default function App() {
           <Route
             path="/"
             element={
-              isAuthenticated
-                ? <ProtectedLayout setIsAuthenticated={setIsAuthenticated} />
-                : <Navigate to="/login" replace />
+              isAuthenticated ? (
+                <ProtectedLayout setIsAuthenticated={setIsAuthenticated} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
             }
           >
             {/* Default redirect */}
             <Route index element={<Navigate to="claims-dashboard" replace />} />
 
-            {/* Child pages */}
+            {/* Child pages (ALL RELATIVE PATHS) */}
             <Route path="claims-dashboard" element={<Home />} />
             <Route path="policy-lookup" element={<PolicyLookup />} />
             <Route path="create-fnol" element={<CreateFnol />} />
@@ -91,7 +90,7 @@ export default function App() {
             <Route path="surveyors" element={<Surveyors />} />
             <Route path="claims/:claimID" element={<ClaimDetail />} />
             <Route path="dispatcher_surveyor" element={<DispatcherSurveyor />} />
-            <Route path="register-fnol" element={<RegisterFNOL />} />         
+            <Route path="register-fnol" element={<RegisterFNOL />} />
             <Route path="surveyors-inquiry" element={<SurveyorsInquiry />} />
             <Route path="fnol-inquiry" element={<FnolInquiry />} />
             <Route path="fnol-dashboard" element={<FnolDashboard />} />
@@ -100,7 +99,10 @@ export default function App() {
             <Route path="wip-page" element={<WipPage />} />
             <Route path="surveyors-edit" element={<SurveyorEdit />} />
             <Route path="policy-dashboard" element={<PolicyDashboard />} />
-            
+
+            {/* ✅ New search & details routes (relative) */}
+            <Route path="search" element={<PolicySearch />} />
+            <Route path="policy/:policyNumber" element={<PolicyDetails />} />
           </Route>
 
           {/* Catch-all */}
