@@ -68,6 +68,19 @@ const ATTACH_FNOL_MEDIA = gql`
   }
 `;
 
+/* ✅ NEW: Assign Surveyor mutation */
+const ASSIGN_SURVEYOR = gql`
+  mutation AssignSurveyor($fnolRef: String!) {
+    assignSurveyor(fnolRef: $fnolRef) {
+      id
+      fnolReferenceNo
+      status
+      message
+      assignedSurveyor { id name status phone }
+    }
+  }
+`;
+
 /* 🔔 Subscription: ONLY for FNOL created -> surveyor notice */
 const FNOL_ASSIGNMENT_NOTICE = gql`
   subscription FnolAssignmentNotice($fnolRef: String!) {
@@ -234,27 +247,18 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
   };
   const removeAt = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
+  // Prefer business ref; fall back to id
+  const fnolRef = (fnol?.fnolReferenceNo || fnol?.id)
+    ? String(fnol.fnolReferenceNo || fnol.id)
+    : null;
 
+  // Normalize base URL (remove trailing slash)
+  const base = String(UPLOADER_URL || "").replace(/\/+$/, "");
 
-// Prefer business ref; fall back to id
-const fnolRef = (fnol?.fnolReferenceNo || fnol?.id)
-  ? String(fnol.fnolReferenceNo || fnol.id)
-  : null;
+  // Correct endpoint: /api/fnol/<ref>/images   (no curly braces!)
+  const url = fnolRef ? `${base}/api/fnol/${encodeURIComponent(fnolRef)}/images` : null;
 
-// Normalize base URL (remove trailing slash)
-const base = String(UPLOADER_URL || "").replace(/\/+$/, "");
-
-// Correct endpoint: /api/fnol/<ref>/images   (no curly braces!)
-const url = fnolRef ? `${base}/api/fnol/${encodeURIComponent(fnolRef)}/images` : null;
-
-console.debug("[uploader] POST", url, "ref=", fnolRef);
-
-
-
-
-
-
-
+  console.debug("[uploader] POST", url, "ref=", fnolRef);
 
   const uploadOne = async (file) => {
     if (!url || !fnolRef) throw new Error("Missing FNOL reference");
@@ -511,6 +515,11 @@ function FnolInquiryInner() {
 
   const [attachMedia] = useMutation(ATTACH_FNOL_MEDIA);
 
+  /* ✅ NEW: assignSurveyor mutation hook + local busy state */
+  const [assignSurveyor, { loading: assigning }] = useMutation(ASSIGN_SURVEYOR, {
+    onError: () => {},
+  });
+
   // Filters
   const [qRaw, setQRaw] = useState(""); const [q, setQ] = useState("");
   useEffect(() => { const t = setTimeout(() => setQ(qRaw), 300); return () => clearTimeout(t); }, [qRaw]);
@@ -518,6 +527,8 @@ function FnolInquiryInner() {
   const [insuredName, setInsuredName] = useState(""); const [city, setCity] = useState("");
   const [severity, setSeverity] = useState(""); const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
   const invalidRange = dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo);
+
+  
 
   useEffect(() => { if (!selectedId) return; if (!rows.some(r => String(r.id) === String(selectedId))) setSelectedId(null); }, [rows, selectedId]);
 
@@ -597,11 +608,8 @@ function FnolInquiryInner() {
 
   const policy = policyData?.getPolicyByNumber ?? null;
 
-  const handleUpdateSelected = () => {
-    if (!selectedRow) return;
-    try { window.dispatchEvent(new CustomEvent("fnol:selected", { detail: selectedRow })); } catch {}
-    navigate(`/fnol/edit?id=${encodeURIComponent(selectedRow.id)}`);
-  };
+  // Old: navigate to another page
+  // const handleUpdateSelected = () => { ... }
 
   const handleOpenDrawer = () => { if (selectedRow) setDrawerOpen(true); };
   const openFnolEdit = (id) => { if (!id) return; navigate(`/register-fnol?id=${encodeURIComponent(id)}`); };
@@ -647,8 +655,9 @@ function FnolInquiryInner() {
 
   /* =========================
      🔔 Subscribe to FNOL notice for the selected row
+     (use fnolReferenceNo when available; fallback to id)
      ========================= */
-  const subscribedRef = selectedRow?.id ? String(selectedRow.id) : null;
+  const subscribedRef = selectedRow ? String(selectedRow.fnolReferenceNo || selectedRow.id) : null;
   useSubscription(FNOL_ASSIGNMENT_NOTICE, {
     skip: !subscribedRef,
     variables: { fnolRef: subscribedRef },
@@ -677,6 +686,22 @@ function FnolInquiryInner() {
   });
 
   /* =========================
+     ✅ Assign Surveyor action (wired to button)
+     ========================= */
+  const onAssignSurveyor = async () => {
+    if (!selectedRow) return;
+    const fnolRef = String(selectedRow.fnolReferenceNo || selectedRow.id);
+    try {
+      const res = await assignSurveyor({ variables: { fnolRef } });
+      const msg = res?.data?.assignSurveyor?.message || `Assignment triggered for ${fnolRef}`;
+      toast.success(msg);
+      try { await refetch(); } catch {}
+    } catch (e) {
+      toast.error(e?.message || "Failed to assign surveyor");
+    }
+  };
+
+  /* =========================
      Render
      ========================= */
   return (
@@ -698,9 +723,20 @@ function FnolInquiryInner() {
                     style={{ background: "var(--brand-primary)" }} title={!selectedRow ? "Select a FNOL row to edit" : "Edit selected FNOL inline"}>
               Edit Inline
             </button>
-            <button onClick={handleUpdateSelected} disabled={!selectedRow}
-                    className="px-3 py-2 rounded-lg font-medium shadow text-white disabled:opacity-50"
-                    style={{ background: "var(--brand-primary-dark)" }} title={!selectedRow ? "Select a FNOL row to update" : "Go to edit page"}>
+            {/* ✅ Assign Surveyor wired here */}
+            <button
+              onClick={onAssignSurveyor}
+              disabled={!selectedRow || assigning}
+              className="px-3 py-2 rounded-lg font-medium shadow text-white disabled:opacity-50 inline-flex items-center gap-2"
+              style={{ background: "var(--brand-primary-dark)" }}
+              title={!selectedRow ? "Select a FNOL row to assign" : `Assign surveyor for ${selectedRow.fnolReferenceNo || selectedRow.id}`}
+            >
+              {assigning && (
+                <svg aria-hidden="true" className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.3" />
+                  <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="4" fill="none" />
+                </svg>
+              )}
               Assign Surveyor
             </button>
             <button onClick={() => setUploadOpen(true)} disabled={!selectedRow}
