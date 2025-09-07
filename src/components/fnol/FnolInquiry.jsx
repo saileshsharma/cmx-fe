@@ -1,6 +1,14 @@
+// src/components/fnol/FnolInquiry.jsx
 import React, { useEffect, useMemo, useState, useRef, createContext, useContext } from "react";
-import { gql, useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client";
+import { useMutation, useQuery, useSubscription } from "@apollo/client";
 import { useNavigate } from "react-router-dom";
+import {
+  GET_ALL_FNOL,
+  UPDATE_FNOL,
+  ATTACH_FNOL_MEDIA,
+  ASSIGN_SURVEYOR,
+  FNOL_ASSIGNMENT_NOTICE,
+} from "../../graphql/fnol";
 
 /* =============================================================================
    🎨 Theme
@@ -14,84 +22,6 @@ const cssVars = { "--brand-primary": PALETTE.primary, "--brand-primary-dark": PA
 const UPLOADER_URL = import.meta.env.VITE_UPLOADER_URL || "http://localhost:8081";
 const UPLOADER_FIELD = import.meta.env.VITE_UPLOADER_FIELD || "file";
 const SHOULD_ATTACH = String(import.meta.env.VITE_ATTACH_MEDIA || "1") === "1";
-
-/* =============================================================================
-   GraphQL
-   ============================================================================= */
-export const GET_ALL_FNOL = gql`
-  query GetAllFnol {
-    getAllFnol {
-      id
-      fnolState
-      fnolReferenceNo
-      accidentDate
-      description
-      severity
-      accidentLocation { id city province postalCode latitude longitude }
-      surveyor { id name status }
-      policy   { id policyNumber }
-      vehicle  { id registrationNumber make model year }
-      insured  {
-        firstName lastName dob gender nationalId passportNumber email phoneNumber
-        addressLine1 addressLine2 city province postalCode country
-        driverLicenseNo licenseIssueDate licenseExpiryDate occupation maritalStatus yearsDriving
-      }
-    }
-  }
-`;
-
-const UPDATE_FNOL = gql`
-  mutation UpdateFnol($id: ID!, $fnolState: FNOLState, $severity: ClaimSeverity, $description: String) {
-    updateFnol(id: $id, fnolState: $fnolState, severity: $severity, description: $description) {
-      id fnolState severity description
-    }
-  }
-`;
-
-const GET_POLICY_BY_NUMBER = gql`
-  query GetPolicyByNumber($policyNumber: String!) {
-    getPolicyByNumber(policyNumber: $policyNumber) {
-      id policyNumber policyType policyStatus startDate endDate
-      insured { email firstName lastName }
-      vehicle { registrationNumber make model year }
-      premiumAmount coverageAmount
-    }
-  }
-`;
-
-const ATTACH_FNOL_MEDIA = gql`
-  mutation AttachFnolMedia($fnolId: ID!, $items: [FnolMediaInput!]!) {
-    attachFnolMedia(fnolId: $fnolId, items: $items) {
-      id
-      media { id url type label createdAt }
-    }
-  }
-`;
-
-/* ✅ NEW: Assign Surveyor mutation */
-const ASSIGN_SURVEYOR = gql`
-  mutation AssignSurveyor($fnolRef: String!) {
-    assignSurveyor(fnolRef: $fnolRef) {
-      id
-      fnolReferenceNo
-      status
-      message
-      assignedSurveyor { id name status phone }
-    }
-  }
-`;
-
-/* 🔔 Subscription: ONLY for FNOL created -> surveyor notice */
-const FNOL_ASSIGNMENT_NOTICE = gql`
-  subscription FnolAssignmentNotice($fnolRef: String!) {
-    fnolAssignmentNotice(fnolRef: $fnolRef) {
-      fnolRef
-      status
-      message
-      timestamp
-    }
-  }
-`;
 
 /* =============================================================================
    Helpers & UI bits
@@ -110,10 +40,8 @@ function downloadCSV(rows, filename = "fnol_export.csv") {
   const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; link.click();
 }
 
-/* Prefer creation timestamp; fallback to accident date; then numeric-ish id */
 function sortKeyForRec(r) {
-  const created =
-    r.createdAt || r.created_at || r.createdOn || r.createdDate || r.createdAtUtc || r.created_at_utc || r.created;
+  const created = r.createdAt || r.created_at || r.createdOn || r.createdDate || r.createdAtUtc || r.created_at_utc || r.created;
   if (created) {
     const t = Date.parse(created);
     if (!Number.isNaN(t)) return t;
@@ -134,7 +62,7 @@ function FancyKpi({ label, value, color }) {
   );
 }
 
-function SkeletonRow({ cols = 13 }) {
+function SkeletonRow({ cols = 12 }) {
   return (
     <tr className="animate-pulse">
       {Array.from({ length: cols }).map((_, i) => (
@@ -224,7 +152,7 @@ function EditDrawer({ open, onClose, initial, onSave, saving, error }) {
 }
 
 /* =============================================================================
-   📤 Upload Images Modal (integrates with cmx-uploader)
+   📤 Upload Images Modal
    ============================================================================= */
 function UploadModal({ open, onClose, fnol, onUploaded }) {
   const toast = useToast();
@@ -248,36 +176,28 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
   const removeAt = (i) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   // Prefer business ref; fall back to id
-  const fnolRef = (fnol?.fnolReferenceNo || fnol?.id)
-    ? String(fnol.fnolReferenceNo || fnol.id)
-    : null;
-
-  // Normalize base URL (remove trailing slash)
+  const fnolReferenceNo = (fnol?.fnolReferenceNo || fnol?.id) ? String(fnol.fnolReferenceNo || fnol.id) : null;
   const base = String(UPLOADER_URL || "").replace(/\/+$/, "");
-
-  // Correct endpoint: /api/fnol/<ref>/images   (no curly braces!)
-  const url = fnolRef ? `${base}/api/fnol/${encodeURIComponent(fnolRef)}/images` : null;
-
-  console.debug("[uploader] POST", url, "ref=", fnolRef);
+  const url = fnolReferenceNo ? `${base}/api/fnol/${encodeURIComponent(fnolReferenceNo)}/images` : null;
 
   const uploadOne = async (file) => {
-    if (!url || !fnolRef) throw new Error("Missing FNOL reference");
+    if (!url || !fnolReferenceNo) throw new Error("Missing FNOL reference");
     const fd = new FormData();
     fd.append(UPLOADER_FIELD, file);
     fd.append("context", JSON.stringify({
       scope: "fnol",
       fnolId: String(fnol?.id || ""),
-      fnolReferenceNo: fnolRef,
+      fnolReferenceNo,
       filename: file.name,
       mimeType: file.type || "image/jpeg",
     }));
-    fd.append("fnolReferenceNo", fnolRef);
+    fd.append("fnolReferenceNo", fnolReferenceNo);
 
     const res = await fetch(url, { method: "POST", body: fd, headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`Upload failed (${res.status})`);
     const json = await res.json();
     if (!json || !json.url) throw new Error("Uploader did not return a URL");
-    return json; // { url, ... }
+    return json;
   };
 
   const doUpload = async () => {
@@ -293,23 +213,21 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
       if (SHOULD_ATTACH && fnol?.id) {
         try {
           await onUploaded(results);
-          toast.success(`Uploaded ${files.length} image(s) to FNOL ${fnolRef} and attached ✅`);
+          toast.success(`Uploaded ${files.length} image(s) to FNOL ${fnolReferenceNo} and attached ✅`);
         } catch (e) {
           console.error(e);
-          toast.error(`Uploaded to FNOL ${fnolRef}, but attach failed`);
+          toast.error(`Uploaded to FNOL ${fnolReferenceNo}, but attach failed`);
         }
       } else {
         const text = results.map((x) => x.url).join("\n");
         try { await navigator.clipboard.writeText(text); } catch {}
-        toast.success(`Uploaded ${files.length} image(s) to FNOL ${fnolRef} ✓`);
+        toast.success(`Uploaded ${files.length} image(s) to FNOL ${fnolReferenceNo} ✓`);
       }
-      try {
-        window.dispatchEvent(new CustomEvent("fnol:uploaded", { detail: { fnolId: fnol?.id, fnolReferenceNo: fnolRef } }));
-      } catch {}
+      try { window.dispatchEvent(new CustomEvent("fnol:uploaded", { detail: { fnolId: fnol?.id, fnolReferenceNo } })); } catch {}
       onClose();
     } catch (e) {
       console.error(e);
-      toast.error((e && e.message) ? e.message : `Upload failed for FNOL ${fnolRef}`);
+      toast.error(e?.message || `Upload failed for FNOL ${fnolReferenceNo}`);
     } finally {
       setBusy(false);
     }
@@ -327,7 +245,7 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
 
           <div className="p-5 space-y-4">
             <div className="text-sm text-gray-600">
-              FNOL:&nbsp;<span className="font-mono font-medium">{fnolRef || "-"}</span>
+              FNOL:&nbsp;<span className="font-mono font-medium">{fnolReferenceNo || "-"}</span>
             </div>
 
             <div
@@ -369,72 +287,51 @@ function UploadModal({ open, onClose, fnol, onUploaded }) {
 }
 
 /* =============================================================================
-   Policy details modal
+   ✅ Assigned Surveyor Dialog
    ============================================================================= */
-function PolicyModal({ open, onClose, loading, error, policy }) {
-  const dialogRef = useRef(null); const closeBtnRef = useRef(null);
-  useEffect(() => { if (!open) return; const prev = document.body.style.overflow; document.body.style.overflow = "hidden"; const t = setTimeout(() => closeBtnRef.current?.focus(), 0); return () => { document.body.style.overflow = prev; clearTimeout(t); }; }, [open]);
-  useEffect(() => { if (!open) return; const onKey = (e) => { if (e.key === "Escape") onClose(); }; document.addEventListener("keydown", onKey); return () => document.removeEventListener("keydown", onKey); }, [open, onClose]);
+function AssignedSurveyorDialog({ open, onClose, payload, onGoDashboard }) {
   if (!open) return null;
-
-  const Field = ({ label, children, mono }) => (
-    <div className="flex items-start gap-3"><div className="w-40 shrink-0 text-sm text-gray-500">{label}</div>
-      <div className={classNames("text-sm", mono && "font-mono")}>{children ?? "-"}</div></div>
-  );
-  const fmtMoney = (v, currency = "SGD", locale = "en-SG") => (v ?? null) === null ? "-" : new Intl.NumberFormat(locale, { style: "currency", currency }).format(v);
-  const Skel = () => <div className="h-4 w-full rounded bg-gray-200/70 animate-pulse" />;
-
+  const p = payload || {};
+  const sv = p.assignedSurveyor || {};
   return (
-    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[130]">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute inset-x-3 md:inset-x-auto md:left:1/2 md:-translate-x-1/2 top-10 md:top-20 w-auto md:w-[760px]">
-        <div ref={dialogRef} className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+      <div className="absolute inset-x-3 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 top-16 w-auto md:w-[560px]">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Policy Details</h3>
-            <button ref={closeBtnRef} onClick={onClose} className="px-2 py-1 rounded-lg hover:bg-gray-100" aria-label="Close">✕</button>
+            <h3 className="text-lg font-semibold">Surveyor Assigned</h3>
+            <button onClick={onClose} className="px-2 py-1 rounded-lg hover:bg-gray-100">✕</button>
           </div>
-          <div className="p-5 space-y-6">
-            {loading && (<div className="space-y-5"><div className="grid md:grid-cols-2 gap-5">{[...Array(7)].map((_, i) => <Skel key={i} />)}</div><div className="grid md:grid-cols-2 gap-5">{[...Array(4)].map((_, i) => <Skel key={i} />)}</div></div>)}
-            {error && (<div className="p-3 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">Failed to load policy: {error.message}</div>)}
-            {!loading && !error && policy && (
-              <>
-                <div className="grid md:grid-cols-2 gap-5">
-                  <Field label="Policy Number" mono>
-                    <div className="flex items-center gap-2"><span>{policy.policyNumber}</span>
-                      <button className="text-xs px-2 py-0.5 border rounded hover:bg-gray-50" onClick={() => navigator.clipboard.writeText(policy.policyNumber)}>Copy</button>
-                    </div>
-                  </Field>
-                  <Field label="Status">{policy.policyStatus ?? "-"}</Field>
-                  <Field label="Type">{policy.policyType ?? "-"}</Field>
-                  <Field label="Coverage">{fmtMoney(policy.coverageAmount)}</Field>
-                  <Field label="Start Date">{formatDate(policy.startDate)}</Field>
-                  <Field label="End Date">{formatDate(policy.endDate)}</Field>
-                  <Field label="Premium">{fmtMoney(policy.premiumAmount)}</Field>
-                </div>
-                <div className="grid md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <div className="text-sm font-semibold text-gray-900">Insured</div>
-                    <Field label="Name">{policy.insured?.firstName} {policy.insured?.lastName}</Field>
-                    <Field label="Email" mono>{policy.insured?.email}</Field>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-semibold text-gray-900">Vehicle</div>
-                    <Field label="Reg. No" mono>{policy.vehicle?.registrationNumber}</Field>
-                    <Field label="Make/Model">{[policy.vehicle?.make, policy.vehicle?.model].filter(Boolean).join(" ") || "-"}</Field>
-                    <Field label="Year">{policy.vehicle?.year}</Field>
-                  </div>
-                </div>
-              </>
-            )}
-            {!loading && !error && !policy && (<div className="py-8 text-center text-gray-600">No policy found.</div>)}
-          </div>
-          <div className="px-5 py-3 border-t bg-gray-50 flex flex-wrap gap-2 justify-between">
-            <div className="text-xs text-gray-500 self-center">Press <kbd className="px-1 border rounded">Esc</kbd> to close</div>
-            <div className="flex gap-2">
-              {!!policy?.id && (<a href={`/policy/${policy.id}`} className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100" target="_blank" rel="noreferrer">Open Policy</a>)}
-              {policy && (<button className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100" onClick={() => navigator.clipboard.writeText(JSON.stringify(policy, null, 2))}>Copy JSON</button>)}
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-white hover:opacity-90" style={{ background: "var(--brand-primary)" }}>Close</button>
+          <div className="p-5 space-y-4">
+            <div className="text-sm text-gray-600">
+              <div><span className="font-medium">FNOL Ref:</span> <span className="font-mono">{p.fnolReferenceNo || "-"}</span></div>
+              <div className="mt-1"><span className="font-medium">Status:</span> <span className="px-2 py-0.5 rounded-full ring-1 ring-gray-200 text-xs">{p.status || "-"}</span></div>
+              {p.message && <div className="mt-2 text-gray-700">{p.message}</div>}
             </div>
+            <div className="border rounded-xl p-4 bg-gray-50">
+              <div className="text-sm text-gray-500 mb-1">Assigned Surveyor</div>
+              <div className="text-gray-900 font-medium">{sv.name || "-"}</div>
+              <div className="text-sm text-gray-600">
+                <div>ID: <span className="font-mono">{sv.id || "-"}</span></div>
+                {sv.status && <div>Status: {sv.status}</div>}
+                {sv.phone && <div>Phone: {sv.phone}</div>}
+                {sv.email && <div>Email: {sv.email}</div>}
+                {sv.phoneNumber && <div>Phone: {sv.phoneNumber}</div>}
+                {sv.status && <div>Status: {sv.status}</div>}
+                {sv.surveyorJobStatus && <div>Job Status: {sv.surveyorJobStatus}</div>}
+                {[sv.city, sv.province, sv.country].filter(Boolean).length > 0 && (
+                  <div>Location: {[sv.city, sv.province, sv.country].filter(Boolean).join(", ")}</div>
+                 )}
+
+              </div>
+            </div>
+          </div>
+          <div className="px-5 py-3 border-t bg-gray-50 flex items-center justify-end gap-2">
+            <button onClick={onClose} className="px-3 py-2 rounded-lg border bg-white hover:bg-gray-100">Close</button>
+            <button onClick={onGoDashboard} className="px-4 py-2 rounded-lg text-white hover:opacity-90"
+              style={{ background: "var(--brand-primary)" }}>
+              Go to Surveyor Dashboard
+            </button>
           </div>
         </div>
       </div>
@@ -443,7 +340,7 @@ function PolicyModal({ open, onClose, loading, error, policy }) {
 }
 
 /* =============================================================================
-   Main component
+   Main component wrappers
    ============================================================================= */
 function EditableSelect({ value, options, onChange, label, busy }) {
   return (
@@ -476,27 +373,19 @@ function FnolInquiryInner() {
 
   const { data, loading, error, refetch } = useQuery(GET_ALL_FNOL, { fetchPolicy: "cache-and-network" });
 
-  /* Newest-first order */
   const rows = useMemo(() => {
     const list = (data?.getAllFnol ?? []).slice();
     list.sort((a, b) => sortKeyForRec(b) - sortKeyForRec(a));
     return list;
   }, [data]);
 
-  // Selection (single radio)
   const [selectedId, setSelectedId] = useState(null);
   const selectedRow = useMemo(() => rows.find(r => String(r.id) === String(selectedId)) ?? null, [rows, selectedId]);
 
-  // Inline edit drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Upload modal
   const [uploadOpen, setUploadOpen] = useState(false);
-
-  // Row-level saving flags
   const [savingRowIds, setSavingRowIds] = useState(new Set());
 
-  // Mutation(s)
   const [doUpdate, { error: updateErrorGlobal }] = useMutation(UPDATE_FNOL, {
     onError: () => {},
     update: (cache, { data: m }) => {
@@ -514,36 +403,22 @@ function FnolInquiryInner() {
   });
 
   const [attachMedia] = useMutation(ATTACH_FNOL_MEDIA);
+  const [assignSurveyor, { loading: assigning }] = useMutation(ASSIGN_SURVEYOR, { onError: () => {} });
 
-  /* ✅ NEW: assignSurveyor mutation hook + local busy state */
-  const [assignSurveyor, { loading: assigning }] = useMutation(ASSIGN_SURVEYOR, {
-    onError: () => {},
-  });
-
-  // Filters
+  // Filters (Insured removed)
   const [qRaw, setQRaw] = useState(""); const [q, setQ] = useState("");
   useEffect(() => { const t = setTimeout(() => setQ(qRaw), 300); return () => clearTimeout(t); }, [qRaw]);
-  const [policyNumber, setPolicyNumber] = useState(""); const [registrationNo, setRegistrationNo] = useState("");
-  const [insuredName, setInsuredName] = useState(""); const [city, setCity] = useState("");
-  const [severity, setSeverity] = useState(""); const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
+  const [city, setCity] = useState("");
+  const [severity, setSeverity] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const invalidRange = dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo);
-
-  
 
   useEffect(() => { if (!selectedId) return; if (!rows.some(r => String(r.id) === String(selectedId))) setSelectedId(null); }, [rows, selectedId]);
 
-  // Pagination
   const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [q, city, severity, dateFrom, dateTo, pageSize]);
 
-  // Policy modal
-  const [policyModalOpen, setPolicyModalOpen] = useState(false);
-  const [selectedPolicyNumber, setSelectedPolicyNumber] = useState(null);
-  const [fetchPolicy, { data: policyData, loading: policyLoading, error: policyError }] =
-    useLazyQuery(GET_POLICY_BY_NUMBER, { fetchPolicy: "cache-first" });
-
-  useEffect(() => { setPage(1); }, [q, policyNumber, registrationNo, insuredName, city, severity, dateFrom, dateTo, pageSize]);
-
-  // KPIs
   const counts = useMemo(() => {
     const s = (x) => (x || "").toUpperCase();
     const submitted  = rows.filter(r => s(r.fnolState) === "SUBMITTED").length;
@@ -564,52 +439,43 @@ function FnolInquiryInner() {
       if (toTs && (dt == null || dt > (toTs + 24 * 60 * 60 * 1000 - 1))) return false;
       if (severity && f.severity !== severity) return false;
 
-      const fullName = [f.insured?.firstName, f.insured?.lastName].filter(Boolean).join(" ").trim();
       const anyText = [
-        f.id, f.fnolReferenceNo, f.description, f.policy?.policyNumber, fullName, f.insured?.email,
-        f.vehicle?.registrationNumber, f.vehicle?.make, f.vehicle?.model, f.accidentLocation?.city,
-        f.accidentLocation?.province, f.accidentLocation?.postalCode, f.surveyor?.name, f.surveyor?.status
+        f.id, f.fnolReferenceNo, f.description,
+        f.vehicle?.registrationNumber, f.vehicle?.make, f.vehicle?.model,
+        f.accidentLocation?.city, f.accidentLocation?.province, f.accidentLocation?.postalCode,
+        f.surveyor?.name, f.surveyor?.status
       ].some(v => matches(v, q));
       if (q && !anyText) return false;
-      if (policyNumber && !matches(f.policy?.policyNumber, policyNumber)) return false;
-      if (registrationNo && !matches(f.vehicle?.registrationNumber, registrationNo)) return false;
-      if (insuredName && !matches(fullName, insuredName)) return false;
       if (city && !matches(f.accidentLocation?.city, city)) return false;
       return true;
     });
-  }, [rows, q, policyNumber, registrationNo, insuredName, city, severity, dateFrom, dateTo, invalidRange]);
+  }, [rows, q, city, severity, dateFrom, dateTo, invalidRange]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize]);
 
   const exportRows = () => {
-    const flat = filtered.map(f => {
-      const insuredFullName = [f.insured?.firstName, f.insured?.lastName].filter(Boolean).join(" ").trim() || "";
-      return {
-        id: f.id, fnolReferenceNo: f.fnolReferenceNo, fnolState: f.fnolState, accidentDate: f.accidentDate,
-        severity: f.severity, policyNumber: f.policy?.policyNumber, insured: insuredFullName,
-        registrationNumber: f.vehicle?.registrationNumber, make: f.vehicle?.make, model: f.vehicle?.model, year: f.vehicle?.year,
-        city: f.accidentLocation?.city, province: f.accidentLocation?.province, postalCode: f.accidentLocation?.postalCode,
-        surveyor: f.surveyor?.name, surveyorStatus: f.surveyor?.status,
-        description: (f.description ?? "").replace(/\n/g, " "),
-      };
-    });
+    const flat = filtered.map(f => ({
+      id: f.id,
+      fnolReferenceNo: f.fnolReferenceNo,
+      fnolState: f.fnolState,
+      accidentDate: f.accidentDate,
+      severity: f.severity,
+      registrationNumber: f.vehicle?.registrationNumber,
+      make: f.vehicle?.make,
+      model: f.vehicle?.model,
+      year: f.vehicle?.year,
+      city: f.accidentLocation?.city,
+      province: f.accidentLocation?.province,
+      postalCode: f.accidentLocation?.postalCode,
+      surveyor: f.surveyor?.name,
+      surveyorStatus: f.surveyor?.status,
+      description: (f.description ?? "").replace(/\n/g, " "),
+    }));
     downloadCSV(flat);
   };
 
-  const openPolicyModal = async (pNumber) => {
-    if (!pNumber) return;
-    setSelectedPolicyNumber(pNumber);
-    setPolicyModalOpen(true);
-    try { await fetchPolicy({ variables: { policyNumber: pNumber } }); } catch {}
-  };
-
-  const clearFilters = () => { setQRaw(""); setPolicyNumber(""); setRegistrationNo(""); setInsuredName(""); setCity(""); setSeverity(""); setDateFrom(""); setDateTo(""); };
-
-  const policy = policyData?.getPolicyByNumber ?? null;
-
-  // Old: navigate to another page
-  // const handleUpdateSelected = () => { ... }
+  const clearFilters = () => { setQRaw(""); setCity(""); setSeverity(""); setDateFrom(""); setDateTo(""); };
 
   const handleOpenDrawer = () => { if (selectedRow) setDrawerOpen(true); };
   const openFnolEdit = (id) => { if (!id) return; navigate(`/register-fnol?id=${encodeURIComponent(id)}`); };
@@ -646,64 +512,49 @@ function FnolInquiryInner() {
     setDrawerOpen(false);
   };
 
-  // Handle GraphQL attach after upload
   const attachUploaded = async (items) => {
     if (!SHOULD_ATTACH || !selectedRow?.id) return;
     await attachMedia({ variables: { fnolId: selectedRow.id, items } });
     try { await refetch(); } catch {}
   };
 
-  /* =========================
-     🔔 Subscribe to FNOL notice for the selected row
-     (use fnolReferenceNo when available; fallback to id)
-     ========================= */
   const subscribedRef = selectedRow ? String(selectedRow.fnolReferenceNo || selectedRow.id) : null;
   useSubscription(FNOL_ASSIGNMENT_NOTICE, {
     skip: !subscribedRef,
-    variables: { fnolRef: subscribedRef },
+    variables: { fnolReferenceNo: subscribedRef },
     onData: ({ data, client }) => {
       const notice = data?.data?.fnolAssignmentNotice;
       if (!notice) return;
-
       toast.success(notice.message || "FNOL has been sent to surveyor");
-
-      // increment global bell (unreadCount) in Apollo cache
       try {
-        client.cache.modify({
-          id: "ROOT_QUERY",
-          fields: {
-            unreadCount(existing = 0) { return existing + 1; },
-          },
-        });
+        client.cache.modify({ id: "ROOT_QUERY", fields: { unreadCount(existing = 0) { return existing + 1; } } });
       } catch {
         window.dispatchEvent(new CustomEvent("app:notifications:refresh"));
       }
-
-      // optional: refresh FNOL list
       try { refetch(); } catch {}
     },
     onError: (e) => console.error("[WS] fnolAssignmentNotice error", e),
   });
 
-  /* =========================
-     ✅ Assign Surveyor action (wired to button)
-     ========================= */
+  // NEW: dialog state for assignment result
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignPayload, setAssignPayload] = useState(null);
+
   const onAssignSurveyor = async () => {
     if (!selectedRow) return;
-    const fnolRef = String(selectedRow.fnolReferenceNo || selectedRow.id);
+    const fnolReferenceNo = String(selectedRow.fnolReferenceNo || selectedRow.id);
     try {
-      const res = await assignSurveyor({ variables: { fnolRef } });
-      const msg = res?.data?.assignSurveyor?.message || `Assignment triggered for ${fnolRef}`;
-      toast.success(msg);
+      const res = await assignSurveyor({ variables: { fnolReferenceNo } });
+      const payload = res?.data?.assignSurveyor || { fnolReferenceNo, status: "SUCCESS", message: `Assignment triggered for ${fnolReferenceNo}` };
+      setAssignPayload(payload);
+      setAssignDialogOpen(true);
+      toast.success(payload.message || "Surveyor assignment successful");
       try { await refetch(); } catch {}
     } catch (e) {
       toast.error(e?.message || "Failed to assign surveyor");
     }
   };
 
-  /* =========================
-     Render
-     ========================= */
   return (
     <div className="p-6 space-y-6" style={cssVars}>
       {/* Hero */}
@@ -723,7 +574,6 @@ function FnolInquiryInner() {
                     style={{ background: "var(--brand-primary)" }} title={!selectedRow ? "Select a FNOL row to edit" : "Edit selected FNOL inline"}>
               Edit Inline
             </button>
-            {/* ✅ Assign Surveyor wired here */}
             <button
               onClick={onAssignSurveyor}
               disabled={!selectedRow || assigning}
@@ -757,12 +607,9 @@ function FnolInquiryInner() {
         <FancyKpi label="Total"     value={counts.total}       color="#334155" />
       </div>
 
-      {/* Filters card */}
+      {/* Filters */}
       <FiltersCard
         qRaw={qRaw} setQRaw={setQRaw} q={q}
-        policyNumber={policyNumber} setPolicyNumber={setPolicyNumber}
-        registrationNo={registrationNo} setRegistrationNo={setRegistrationNo}
-        insuredName={insuredName} setInsuredName={setInsuredName}
         city={city} setCity={setCity}
         severity={severity} setSeverity={setSeverity}
         dateFrom={dateFrom} setDateFrom={setDateFrom}
@@ -777,7 +624,7 @@ function FnolInquiryInner() {
         <span className="px-1 rounded bg-rose-50 text-rose-700 ring-1 ring-rose-200"> High</span>
       </div>
 
-      {/* Results card */}
+      {/* Results */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -789,10 +636,10 @@ function FnolInquiryInner() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {loading && !data && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} cols={13} />)}
+              {loading && !data && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} cols={12} />)}
               {error && (
                 <tr>
-                  <td colSpan={13} className="px-4 py-6 text-center">
+                  <td colSpan={12} className="px-4 py-6 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-rose-50 text-rose-700 border border-rose-200">
                       <span>⚠</span><span>Error: {error.message}</span>
                       <button onClick={() => refetch()} className="ml-2 underline">Retry</button>
@@ -801,23 +648,20 @@ function FnolInquiryInner() {
                 </tr>
               )}
               {!loading && !error && pageItems.length === 0 && (
-                <tr><td colSpan={13} className="px-4 py-6 text-center text-gray-500">No results</td></tr>
+                <tr><td colSpan={12} className="px-4 py-6 text-center text-gray-500">No results</td></tr>
               )}
               {pageItems.map((f) => {
-                const insuredFullName = [f.insured?.firstName, f.insured?.lastName].filter(Boolean).join(" ").trim() || "-";
                 const isChecked = String(selectedId) === String(f.id);
                 const rowBusy = savingRowIds.has(f.id);
                 return (
                   <tr key={f.id}
                       className={classNames("group", isChecked ? "bg-indigo-50/60" : "hover:bg-indigo-50/40")}
                       onDoubleClick={() => setSelectedId(f.id)}>
-                    {/* Radio select */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <input type="radio" name="fnol-select" aria-label={`Select FNOL ${f.fnolReferenceNo || f.id}`}
                              checked={isChecked} onChange={() => setSelectedId(f.id)} className="h-4 w-4 accent-indigo-600 cursor-pointer"/>
                     </td>
 
-                    {/* Reference No. – clickable to open FNOL edit */}
                     <td className="px-4 py-3 whitespace-nowrap font-mono">
                       <button type="button" onClick={() => openFnolEdit(f.id)}
                               className="underline decoration-dotted hover:decoration-solid"
@@ -828,7 +672,6 @@ function FnolInquiryInner() {
 
                     <td className="px-4 py-3">{f.description ?? "-"}</td>
 
-                    {/* State – editable with auto-save */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <EditableSelect value={f.fnolState} options={STATE_OPTIONS} label="state" busy={rowBusy}
                                       onChange={(val) => savePartial(f.id, { fnolState: val })} />
@@ -847,18 +690,15 @@ function FnolInquiryInner() {
                     <td className="px-4 py-3 whitespace-nowrap">{f.accidentLocation?.province ?? "-"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{f.accidentLocation?.postalCode ?? "-"}</td>
 
-                    {/* Severity – editable with auto-save */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <EditableSelect value={f.severity} options={SEVERITY_OPTIONS} label="severity" busy={rowBusy}
                                       onChange={(val) => savePartial(f.id, { severity: val })} />
                     </td>
 
-                    {/* Surveyor name */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {f.surveyor?.name ? <span>{f.surveyor.name}</span> : "-"}
                     </td>
 
-                    {/* Surveyor status */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {f.surveyor?.status ? <span className="px-2 py-0.5 rounded-full ring-1 ring-gray-200 text-xs">{f.surveyor.status}</span> : "-"}
                     </td>
@@ -870,7 +710,6 @@ function FnolInquiryInner() {
           </table>
         </div>
 
-        {/* Pagination */}
         <Pagination
           filteredLen={filtered.length}
           page={page} setPage={setPage}
@@ -879,15 +718,18 @@ function FnolInquiryInner() {
         />
       </div>
 
-      {/* Policy details modal */}
-      <PolicyModal open={policyModalOpen} onClose={() => setPolicyModalOpen(false)} loading={policyLoading} error={policyError} policy={policy} />
-
-      {/* Inline Edit Drawer */}
       <EditDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} initial={selectedRow}
                   saving={savingRowIds.has(selectedRow?.id)} error={updateErrorGlobal} onSave={handleSaveDrawer} />
 
-      {/* Upload Images modal */}
       <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} fnol={selectedRow} onUploaded={attachUploaded} />
+
+      {/* NEW: show surveyor assignment details */}
+      <AssignedSurveyorDialog
+        open={assignDialogOpen}
+        onClose={() => setAssignDialogOpen(false)}
+        payload={assignPayload}
+        onGoDashboard={() => { setAssignDialogOpen(false); navigate("/dispatcher_surveyor"); }}
+      />
     </div>
   );
 }
@@ -896,9 +738,6 @@ function FnolInquiryInner() {
 function FiltersCard(props) {
   const {
     qRaw, setQRaw, q,
-    policyNumber, setPolicyNumber,
-    registrationNo, setRegistrationNo,
-    insuredName, setInsuredName,
     city, setCity,
     severity, setSeverity,
     dateFrom, setDateFrom,
@@ -907,29 +746,39 @@ function FiltersCard(props) {
   } = props;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 bg-white/70 backdrop-blur p-4 rounded-2xl shadow-sm border border-gray-200">
-      <div className="lg:col-span-3">
+      <div className="lg:col-span-5">
         <label className="block text-sm text-gray-700">Global search</label>
         <div className="relative mt-1">
-          <input value={qRaw} onChange={e => setQRaw(e.target.value)} placeholder="ID, ref, policy, insured, vehicle, city/province/postal…"
-                 className="w-full rounded-xl border border-gray-300 pl-9 pr-9 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+          <input
+            value={qRaw}
+            onChange={e => setQRaw(e.target.value)}
+            placeholder="ID, reference, vehicle, city/province/postal…"
+            className="w-full rounded-xl border border-gray-300 pl-9 pr-9 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          />
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
           {qRaw !== q && <div className="text-xs text-gray-400 mt-1">Searching…</div>}
           {qRaw && (<button onClick={() => setQRaw("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" title="Clear">✖</button>)}
         </div>
       </div>
-      <div><label className="block text-sm text-gray-700">Policy #</label><input value={policyNumber} onChange={e => setPolicyNumber(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-      <div><label className="block text-sm text-gray-700">Reg. No</label><input value={registrationNo} onChange={e => setRegistrationNo(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-      <div><label className="block text-sm text-gray-700">Insured</label><input value={insuredName} onChange={e => setInsuredName(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-      <div><label className="block text-sm text-gray-700">City</label><input value={city} onChange={e => setCity(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-      <div>
+      <div className="lg:col-span-2">
+        <label className="block text-sm text-gray-700">City</label>
+        <input value={city} onChange={e => setCity(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+      </div>
+      <div className="lg:col-span-2">
         <label className="block text-sm text-gray-700">Severity</label>
         <select value={severity} onChange={e => setSeverity(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           <option value="">All</option>
           {SEVERITY_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
-      <div><label className="block text-sm text-gray-700">Date from</label><input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
-      <div><label className="block text-sm text-gray-700">Date to</label><input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" /></div>
+      <div className="lg:col-span-1">
+        <label className="block text-sm text-gray-700">Date from</label>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+      </div>
+      <div className="lg:col-span-2">
+        <label className="block text-sm text-gray-700">Date to</label>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+      </div>
       {invalidRange && <div className="lg:col-span-12 text-sm text-rose-600">“Date from” must be earlier than or equal to “Date to”. Filters paused.</div>}
     </div>
   );
