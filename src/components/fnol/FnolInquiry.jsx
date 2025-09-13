@@ -313,16 +313,9 @@ function AssignedSurveyorDialog({ open, onClose, payload, onGoDashboard }) {
               <div className="text-gray-900 font-medium">{sv.name || "-"}</div>
               <div className="text-sm text-gray-600">
                 <div>ID: <span className="font-mono">{sv.id || "-"}</span></div>
-                {sv.status && <div>Status: {sv.status}</div>}
-                {sv.phone && <div>Phone: {sv.phone}</div>}
                 {sv.email && <div>Email: {sv.email}</div>}
-                {sv.phoneNumber && <div>Phone: {sv.phoneNumber}</div>}
+                {sv.phone && <div>Phone: {sv.phone}</div>}
                 {sv.status && <div>Status: {sv.status}</div>}
-                {sv.surveyorJobStatus && <div>Job Status: {sv.surveyorJobStatus}</div>}
-                {[sv.city, sv.province, sv.country].filter(Boolean).length > 0 && (
-                  <div>Location: {[sv.city, sv.province, sv.country].filter(Boolean).join(", ")}</div>
-                 )}
-
               </div>
             </div>
           </div>
@@ -405,8 +398,9 @@ function FnolInquiryInner() {
   const [attachMedia] = useMutation(ATTACH_FNOL_MEDIA);
   const [assignSurveyor, { loading: assigning }] = useMutation(ASSIGN_SURVEYOR, { onError: () => {} });
 
-  // Filters (Insured removed)
-  const [qRaw, setQRaw] = useState(""); const [q, setQ] = useState("");
+  // Filters
+  const [qRaw, setQRaw] = useState(""); 
+  const [q, setQ] = useState("");
   useEffect(() => { const t = setTimeout(() => setQ(qRaw), 300); return () => clearTimeout(t); }, [qRaw]);
   const [city, setCity] = useState("");
   const [severity, setSeverity] = useState("");
@@ -414,9 +408,13 @@ function FnolInquiryInner() {
   const [dateTo, setDateTo] = useState("");
   const invalidRange = dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo);
 
-  useEffect(() => { if (!selectedId) return; if (!rows.some(r => String(r.id) === String(selectedId))) setSelectedId(null); }, [rows, selectedId]);
+  useEffect(() => { 
+    if (!selectedId) return; 
+    if (!rows.some(r => String(r.id) === String(selectedId))) setSelectedId(null); 
+  }, [rows, selectedId]);
 
-  const [page, setPage] = useState(1); const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1); 
+  const [pageSize, setPageSize] = useState(10);
   useEffect(() => { setPage(1); }, [q, city, severity, dateFrom, dateTo, pageSize]);
 
   const counts = useMemo(() => {
@@ -536,7 +534,7 @@ function FnolInquiryInner() {
     onError: (e) => console.error("[WS] fnolAssignmentNotice error", e),
   });
 
-  // NEW: dialog state for assignment result
+  // Dialog state for assignment result
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignPayload, setAssignPayload] = useState(null);
 
@@ -723,7 +721,7 @@ function FnolInquiryInner() {
 
       <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} fnol={selectedRow} onUploaded={attachUploaded} />
 
-      {/* NEW: show surveyor assignment details */}
+      {/* Surveyor assignment details */}
       <AssignedSurveyorDialog
         open={assignDialogOpen}
         onClose={() => setAssignDialogOpen(false)}
@@ -734,7 +732,7 @@ function FnolInquiryInner() {
   );
 }
 
-/* --- small presentational helpers --- */
+/* --- Presentational helpers --- */
 function FiltersCard(props) {
   const {
     qRaw, setQRaw, q,
@@ -779,7 +777,7 @@ function FiltersCard(props) {
         <label className="block text-sm text-gray-700">Date to</label>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
       </div>
-      {invalidRange && <div className="lg:col-span-12 text-sm text-rose-600">“Date from” must be earlier than or equal to “Date to”. Filters paused.</div>}
+      {invalidRange && <div className="lg:col-span-12 text-sm text-rose-600">"Date from" must be earlier than or equal to "Date to". Filters paused.</div>}
     </div>
   );
 }

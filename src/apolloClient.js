@@ -1,5 +1,5 @@
 // src/apolloClient.js
-import { ApolloClient, InMemoryCache, split, HttpLink, from } from "@apollo/client";
+import { ApolloClient, InMemoryCache, split, HttpLink, from, ApolloLink } from "@apollo/client";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 import { getMainDefinition } from "@apollo/client/utilities";
@@ -49,22 +49,30 @@ const httpLink = new HttpLink({
  * Error handling (HTTP/Query/Mutation)
  * (Note: WS errors won’t flow through this; see ws client 'on' below)
  * ----------------------------------------------------------*/
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+  // Log operation that failed
+  console.error(`[Apollo] Operation ${operation.operationName} failed:`, {
+    graphQLErrors,
+    networkError
+  });
+
+  // More specific error handling
   if (graphQLErrors?.length) {
-    graphQLErrors.forEach(({ message, extensions }) => {
+    graphQLErrors.forEach(({ message, extensions, path }) => {
+      const errorCode = extensions?.code || 'UNKNOWN';
+      const fieldPath = path?.join('.') || 'unknown_field';
+      
       window.dispatchEvent(
         new CustomEvent("app:error", {
-          detail: { message: message || "GraphQL request failed", code: extensions?.code },
+          detail: {
+            message: message || "GraphQL request failed",
+            code: errorCode,
+            field: fieldPath,
+            operation: operation.operationName
+          },
         })
       );
     });
-  }
-  if (networkError) {
-    window.dispatchEvent(
-      new CustomEvent("app:error", {
-        detail: { message: "Network error. Please try again.", code: "NETWORK" },
-      })
-    );
   }
 });
 
@@ -143,8 +151,20 @@ if (wsUri && typeof window !== "undefined" && window.location.protocol !== "file
 }
 
 /** -----------------------------------------------------------
- * Split: WS for subscriptions, HTTP for the rest
+ * Performance link (logs slow queries)
  * ----------------------------------------------------------*/
+const perfLink = new ApolloLink((operation, forward) => {
+  const startTime = Date.now();
+  return forward(operation).map(response => {
+    const duration = Date.now() - startTime;
+    if (duration > 1000) { // Log slow queries
+      console.warn(`[Apollo] Slow operation: ${operation.operationName} took ${duration}ms`);
+    }
+    return response;
+  });
+});
+
+// Add to link chain:
 const link = wsLink
   ? split(
       ({ query }) => {
@@ -152,16 +172,27 @@ const link = wsLink
         return def.kind === "OperationDefinition" && def.operation === "subscription";
       },
       wsLink,
-      from([errorLink, httpLink])
+      from([perfLink, errorLink, httpLink]) // Add perfLink
     )
-  : from([errorLink, httpLink]);
+  : from([perfLink, errorLink, httpLink]);
 
 /** -----------------------------------------------------------
  * Apollo Client
  * ----------------------------------------------------------*/
+const cache = new InMemoryCache({
+  typePolicies: {
+    Query: {
+      fields: {
+        // Add field policies if needed
+      },
+    },
+  },
+});
+
+// Use in client config
 const client = new ApolloClient({
   link,
-  cache: new InMemoryCache(),
+  cache,
   defaultOptions: {
     watchQuery: { fetchPolicy: "cache-and-network", errorPolicy: "all" },
     query:       { fetchPolicy: "network-only",     errorPolicy: "all" },
@@ -174,5 +205,21 @@ const client = new ApolloClient({
   // eslint-disable-next-line no-console
   console.info("[Apollo] HTTP:", httpUri, "| WS:", wsUri || "(disabled)", "| credentials:", credentials);
 })();
+
+const validateEnvConfig = () => {
+  if (envHttp && !envHttp.includes('/graphql')) {
+    console.warn('[Apollo] VITE_GRAPHQL_URI should contain /graphql endpoint');
+  }
+  
+  if (envWs && !['ws://', 'wss://'].some(proto => envWs.startsWith(proto))) {
+    console.warn('[Apollo] VITE_GRAPHQL_WS_URI should start with ws:// or wss://');
+  }
+}
+
+validateEnvConfig();
+
+if (wsUri?.startsWith('ws:') && window.location.protocol === 'https:') {
+  console.warn('[Apollo] Using insecure WebSocket (ws://) on HTTPS site');
+}
 
 export default client;
