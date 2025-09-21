@@ -11,11 +11,11 @@ import { onError } from "@apollo/client/link/error";
 const envHttp = import.meta.env.VITE_GRAPHQL_URI;
 const envWs   = import.meta.env.VITE_GRAPHQL_WS_URI;
 
-// If you use a Vite proxy, point to relative "/graphql" in dev.
-// Otherwise, set VITE_GRAPHQL_URI to your absolute backend URL.
+// Point to BFF (Backend-for-Frontend) service instead of direct backend
+// BFF runs on port 4000 and proxies requests to cmx-be
 const httpUri =
   envHttp ||
-  (import.meta.env.DEV ? "/graphql" : "http://localhost:8080/graphql");
+  (import.meta.env.DEV ? "http://localhost:4000/graphql" : "http://localhost:4000/graphql");
 
 // Derive WS from HTTP when not supplied (http→ws, https→wss)
 function deriveWsFromHttp(httpUrl) {

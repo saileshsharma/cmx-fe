@@ -43,6 +43,9 @@ import PolicyDetails from "./components/fnol/PolicyDetails.jsx";
 // WIP
 import WipPage from "./components/WipPage.jsx";
 
+// GraphQL Test
+import GraphQLTest from "./components/GraphQLTest.jsx";
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -103,6 +106,9 @@ export default function App() {
             {/* ✅ New search & details routes (relative) */}
             <Route path="search" element={<PolicySearch />} />
             <Route path="policy/:policyNumber" element={<PolicyDetails />} />
+
+            {/* GraphQL Test Route */}
+            <Route path="graphql-test" element={<GraphQLTest />} />
           </Route>
 
           {/* Catch-all */}

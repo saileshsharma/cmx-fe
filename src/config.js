@@ -1,8 +1,14 @@
-// src/config.js
+// Legacy config.js - DEPRECATED
+// This file is kept for backwards compatibility
+// Please use src/config/index.ts for new code
+
+import { legacyConfig } from './config/index';
+
+// Re-export the legacy configuration format
 const config = {
-  graphqlUri: import.meta.env.VITE_GRAPHQL_URI || "http://localhost:8080/graphql", // fallback
-  graphqlWsUri: import.meta.env.VITE_GRAPHQL_WS_URI || "ws://localhost:8080/graphql", // fallback
-  appName: "Claims MotorX",
+  graphqlUri: legacyConfig.graphqlUri,
+  graphqlWsUri: legacyConfig.graphqlWsUri,
+  appName: legacyConfig.appName,
 };
 
 export default config;
