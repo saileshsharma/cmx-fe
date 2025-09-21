@@ -42,6 +42,7 @@ dist/
 playwright-report/
 test-results/
 junit-report/
+screenshots/
 
 # Build & Temp
 out/

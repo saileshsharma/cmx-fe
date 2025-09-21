@@ -15,6 +15,9 @@ test.describe('Authentication', () => {
   test('should show login form', async ({ page }) => {
     await page.goto('/login');
 
+    // Take screenshot of login page
+    await page.screenshot({ path: 'test-results/screenshots/login-page.png', fullPage: true });
+
     // Check for login form elements
     await expect(page.locator('input[type="email"], input[type="text"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
@@ -31,10 +34,17 @@ test.describe('Authentication', () => {
 
     await emailInput.fill('test@example.com');
     await passwordInput.fill('password123');
+
+    // Screenshot before login attempt
+    await page.screenshot({ path: 'test-results/screenshots/login-form-filled.png', fullPage: true });
+
     await submitButton.click();
 
     // Should redirect to dashboard after successful login
     await expect(page).toHaveURL('/claims-dashboard');
+
+    // Screenshot of dashboard after successful login
+    await page.screenshot({ path: 'test-results/screenshots/dashboard-after-login.png', fullPage: true });
 
     // Verify authentication state is set
     const isAuthenticated = await page.evaluate(() => localStorage.getItem('isAuthenticated'));
