@@ -1,7 +1,13 @@
 // src/components/claims/ClaimsDashboard.jsx
 import React, { useMemo, useState, useEffect } from "react";
-import { useQuery, useMutation, gql } from "@apollo/client";
-import { GET_ALL_CLAIMS, GET_CLAIMS_BY_STATUS } from "../../graphql/claims";
+import { useQuery, useMutation } from "@apollo/client";
+import {
+  GET_ALL_CLAIMS,
+  GET_CLAIMS_BY_STATUS,
+  UPDATE_CLAIM,
+  DUPLICATE_CLAIM,
+  GET_CLAIMS_BY_POLICY
+} from "../../graphql/claims";
 import {
   PieChart, Pie, Tooltip, Legend, ResponsiveContainer, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -20,58 +26,12 @@ const SHOULD_ATTACH = String(import.meta.env.VITE_ATTACH_MEDIA || "1") === "1";
 
 
 
-export const UPDATE_CLAIM = gql`
-  mutation UpdateClaim($id: ID!, $input: UpdateClaimInput!) {
-    updateClaim(id: $id, input: $input) {
-      id
-      claimNumber
-      claimStatus       # ✅ exists
-      claimSeverity     # ✅ exists
-      claimAmount
-      incidentDate
-      claimDate
-      dateReported
-      location
-      createdAt         # ✅ exists (no updatedAt in your SDL)
-      fnol {
-        id
-        fnolReferenceNo
-        fnolState
-      }
-    }
-  }
-`;
 
 
 
 
 
 /** NEW: Duplicate mutation (adjust to your API if needed) */
-const DUPLICATE_CLAIM = gql`
-  mutation DuplicateClaim($id: ID!) {
-    duplicateClaim(id: $id) {
-      id
-      claimNumber
-      claimStatus
-      claimAmount
-      claimSeverity
-      claimDate
-      incidentDate
-      dateReported
-    }
-  }
-`;
-
-const GET_CLAIMS_BY_POLICY = gql`
-  query GetClaimsByPolicyNumber($policyNumber: String!) {
-    getClaimsByPolicyNumber(policyNumber: $policyNumber) {
-      claimNumber
-      status
-      severity
-      createdAt
-    }
-  }
-`;
 
 
 

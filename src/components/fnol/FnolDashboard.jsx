@@ -1,30 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
+import { GET_ALL_FNOL } from "../../graphql/fnol";
 import {
   PieChart, Pie, Tooltip, Legend, ResponsiveContainer, Cell,
   LineChart, Line, CartesianGrid, XAxis, YAxis, BarChart, Bar,
 } from "recharts";
-
-/* =========================
-   GraphQL
-   ========================= */
-const GET_ALL_FNOL = gql`
-  query GetAllFnol {
-    getAllFnol {
-      id
-      fnolState
-      fnolReferenceNo
-      accidentDate
-      description
-      severity
-      accidentLocation { id city postalCode latitude longitude }
-      surveyor { id name status }
-      policy   { id policyNumber }
-      vehicle  { id registrationNumber make model year }
-      insured  { insuredId }
-    }
-  }
-`;
 
 /* =========================
    Helpers & constants

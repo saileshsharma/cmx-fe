@@ -49,6 +49,93 @@ export const ATTACH_FNOL_MEDIA = gql`
 `;
 
 
+export const CREATE_FNOL = gql`
+  mutation CreateFnol(
+    $policyNumber: String!
+    $registrationNumber: String!
+    $accidentLocationId: ID!
+    $description: String!
+    $severity: ClaimSeverity!
+    $accidentDate: String!
+  ) {
+    createFnol(
+      policyNumber: $policyNumber
+      registrationNumber: $registrationNumber
+      accidentLocationId: $accidentLocationId
+      description: $description
+      severity: $severity
+      accidentDate: $accidentDate
+    ) {
+      fnol {
+        id
+        fnolReferenceNo
+        accidentDate
+        description
+        accidentLocation {
+          id
+          addressLine1
+          addressLine2
+          city
+          province
+          postalCode
+          country
+          latitude
+          longitude
+        }
+        severity
+        fnolState
+        policy {
+          id
+          policyNumber
+        }
+        vehicle {
+          id
+          registrationNumber
+        }
+      }
+      success
+      message
+    }
+  }
+`;
+
+export const GET_FNOL_BY_REFERENCE = gql`
+  query GetFnolByReference($fnolReferenceNo: String!) {
+    getFnolByReference(fnolReferenceNo: $fnolReferenceNo) {
+      id
+      fnolReferenceNo
+      fnolState
+      accidentDate
+      description
+      severity
+      accidentLocation {
+        id
+        city
+        province
+        postalCode
+        latitude
+        longitude
+      }
+      surveyor {
+        id
+        name
+        status
+      }
+      vehicle {
+        id
+        registrationNumber
+        make
+        model
+        year
+      }
+      policy {
+        id
+        policyNumber
+      }
+    }
+  }
+`;
+
 export const ASSIGN_SURVEYOR = gql`
   mutation AssignSurveyor($fnolReferenceNo: String!) {
     assignSurveyor(fnolReferenceNo: $fnolReferenceNo) {
@@ -61,7 +148,7 @@ export const ASSIGN_SURVEYOR = gql`
         email
         phone         # <-- matches SurveyorView.phone
         status        # <-- SurveyorStatus as String
-        jobStatus     # <-- SurveyorJobStatus as String
+        surveyorJobStatus     # <-- SurveyorJobStatus as String
         city
         province
         country

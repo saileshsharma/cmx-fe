@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { useNavigate } from "react-router-dom";
+import { GET_ALL_SURVEYORS } from "../../graphql/surveyor";
 
 /* =========================================================================
    🎨 Theme — tweak these hex codes to match your Claims Dashboard brand
@@ -27,31 +28,6 @@ const cssVars = {
 /* =========================================================================
    GraphQL
    ========================================================================= */
-const GET_ALL_SURVEYORS = gql`
-  query GetAllSurveyors {
-    getAllSurveyors {
-      id
-      name
-      email
-      phoneNumber
-      currentLat
-      currentLng
-      rating_avg
-      app_version
-      capacityPerDay
-      activeJobsCount
-      skills
-      createdAt
-      updatedAt
-      city
-      province
-      country
-      internal
-      status              # AVAILABLE | UNAVAILABLE | INACTIVE
-      surveyorJobStatus   # Accepted | Working | Pending | Closed | On_The_Way
-    }
-  }
-`;
 
 /* =========================================================================
    Constants & helpers

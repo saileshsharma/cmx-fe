@@ -1,33 +1,19 @@
 
 import React, { useMemo, useState, useEffect } from "react";
-import { useQuery, gql } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { useSearchParams } from "react-router-dom";
-import { GET_ALL_POLICIES, GET_POLICY_BY_STATUS } from "../../graphql/policies";
+import {
+  GET_ALL_POLICIES,
+  GET_POLICY_BY_STATUS,
+  GET_POLICY_WITH_CLAIMS
+} from "../../graphql/policies";
+import { GET_CLAIMS_BY_POLICY } from "../../graphql/claims";
 import {
   PieChart, Pie, Tooltip, Legend, ResponsiveContainer, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   LineChart, Line,
   ScatterChart, Scatter,
 } from "recharts";
-
-/* =========================
-   GraphQL
-   ========================= */
-const GET_CLAIMS_BY_POLICY = gql`
-  query GetClaimsByPolicyNumber($policyNumber: String!) {
-    getClaimsByPolicyNumber(policyNumber: $policyNumber) {
-      id
-      claimNumber
-      status
-      severity
-      createdAt
-      fnol {
-        fnolReferenceNo
-        fnolState
-      }
-    }
-  }
-`;
 
 /* =========================
    Helpers & constants

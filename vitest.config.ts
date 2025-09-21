@@ -7,13 +7,14 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
     reporters: process.env.CI ? ["junit", "default"] : ["default"],
     outputFile: process.env.CI ? "junit-report/junit.xml" : undefined,
     coverage: {
       provider: "v8",
       reportsDirectory: "coverage",
       reporter: ["text", "lcov"],
-      exclude: ["**/node_modules/**", "**/dist/**"]
+      exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"]
     }
   }
 });

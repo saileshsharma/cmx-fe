@@ -57,6 +57,37 @@ export const UPDATE_CLAIM = gql`
   }
 `;
 
+export const DUPLICATE_CLAIM = gql`
+  mutation DuplicateClaim($id: ID!) {
+    duplicateClaim(id: $id) {
+      id
+      claimNumber
+      claimStatus
+      claimAmount
+      claimSeverity
+      claimDate
+      incidentDate
+      dateReported
+    }
+  }
+`;
+
+export const GET_CLAIMS_BY_POLICY = gql`
+  query GetClaimsByPolicyNumber($policyNumber: String!) {
+    getClaimsByPolicyNumber(policyNumber: $policyNumber) {
+      id
+      claimNumber
+      status
+      severity
+      createdAt
+      fnol {
+        fnolReferenceNo
+        fnolState
+      }
+    }
+  }
+`;
+
 
 
 /** 4) Get all claims — merged & validated:

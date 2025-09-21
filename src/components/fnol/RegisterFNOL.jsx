@@ -1,82 +1,10 @@
 /* global google */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { gql, useMutation, useSubscription } from "@apollo/client";
+import { useMutation, useSubscription } from "@apollo/client";
 import { GoogleMap, MarkerF, Autocomplete, useLoadScript } from "@react-google-maps/api";
-
-/* =========================================================================
-   GraphQL
-   ========================================================================= */
-const FNOL_ASSIGNMENT_NOTICE = gql`
-  subscription FnolAssignmentNotice($fnolReferenceNo: String!) {
-    fnolAssignmentNotice(fnolReferenceNo: $fnolReferenceNo) {
-      fnolReferenceNo
-      status
-      message
-      timestamp
-    }
-  }
-`;
-
-const CREATE_FNOL = gql`
-  mutation CreateFnol(
-    $policyNumber: String!
-    $registrationNumber: String!
-    $accidentLocationId: ID!
-    $description: String!
-    $severity: ClaimSeverity!
-    $accidentDate: String!
-  ) {
-    createFnol(
-      policyNumber: $policyNumber
-      registrationNumber: $registrationNumber
-      accidentLocationId: $accidentLocationId
-      description: $description
-      severity: $severity
-      accidentDate: $accidentDate
-    ) {
-      fnol {
-        id
-        fnolReferenceNo
-        accidentDate
-        description
-        accidentLocation {
-          id
-          addressLine1
-          addressLine2
-          city
-          province
-          postalCode
-          country
-          latitude
-          longitude
-          googlePlaceId
-          locationType
-          createdAt
-        }
-      }
-    }
-  }
-`;
-
-export const CREATE_ADDRESS = gql`
-  mutation CreateAddress($input: CreateAddressInput!) {
-    createAddress(input: $input) {
-      id
-      addressLine1
-      addressLine2
-      city
-      province
-      postalCode
-      country
-      latitude
-      longitude
-      googlePlaceId
-      locationType
-      createdAt
-    }
-  }
-`;
+import { CREATE_FNOL, FNOL_ASSIGNMENT_NOTICE } from "../../graphql/fnol";
+import { CREATE_ADDRESS } from "../../graphql/address";
 
 /* =========================================================================
    Helpers
