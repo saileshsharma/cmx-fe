@@ -5,14 +5,27 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host",
     "build": "vite build",
+    "build:prod": "NODE_ENV=production vite build",
     "preview": "vite preview",
+    "preview:prod": "vite preview --host --port 4173",
+    "serve:prod": "serve -s dist -l 3000",
+    "start": "npm run dev",
+    "start:prod": "npm run build:prod && npm run serve:prod",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
     "test:ci": "vitest run --reporter=junit --outputFile=junit-report/junit.xml",
+    "test:all": "npm run typecheck && npm run lint && npm run test && npm run e2e",
     "e2e": "playwright test",
-    "e2e:report": "playwright show-report"
+    "e2e:headed": "playwright test --headed",
+    "e2e:debug": "playwright test --debug",
+    "e2e:report": "playwright show-report",
+    "quality": "npm run typecheck && npm run lint"
   },
   "dependencies": {
     "@apollo/client": "^3.14.0",

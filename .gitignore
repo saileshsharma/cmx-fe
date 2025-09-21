@@ -38,6 +38,11 @@ application-*.properties
 node_modules/
 dist/
 
+# Testing
+playwright-report/
+test-results/
+junit-report/
+
 # Build & Temp
 out/
 bin/
