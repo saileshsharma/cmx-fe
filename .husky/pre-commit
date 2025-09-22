@@ -1,0 +1,16 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Run type checking
+npm run type-check
+
+# Run linting
+npm run lint
+
+# Run unit tests
+npm run test:unit
+
+# Run test coverage check
+npm run test:coverage -- --reporter=text-summary
+
+echo "✅ All pre-commit checks passed!"
