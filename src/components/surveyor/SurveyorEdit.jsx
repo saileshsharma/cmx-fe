@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useLazyQuery, useMutation } from "@apollo/client";
+import { useLazyQuery, useMutation, gql } from "@apollo/client";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GET_SURVEYOR, UPDATE_SURVEYOR } from "../../graphql/surveyors";
 
@@ -172,10 +172,22 @@ export default function SurveyorEdit() {
       optimisticResponse: {
         updateSurveyor: {
           __typename: "Surveyor",
-          ...input,
           id,
+          name: input.name || draft.name,
+          email: input.email || draft.email,
+          phoneNumber: input.phoneNumber || draft.phoneNumber,
+          rating_avg: input.rating_avg || draft.rating_avg,
+          app_version: input.app_version || draft.app_version,
+          capacityPerDay: input.capacityPerDay || draft.capacityPerDay,
+          activeJobsCount: input.activeJobsCount || draft.activeJobsCount,
+          skills: input.skills || draft.skills,
+          city: input.city || draft.city,
+          province: input.province || draft.province,
+          country: input.country || draft.country,
+          internal: input.internal !== undefined ? input.internal : draft.internal,
+          status: input.status || draft.status,
           // Keep optimistic values consistent with query selection
-          isActive: (draft.status || "").toUpperCase() !== "INACTIVE",
+          isActive: (input.status || draft.status || "").toUpperCase() !== "INACTIVE",
           createdAt: draft.createdAt || null,
           updatedAt: new Date().toISOString(),
         },

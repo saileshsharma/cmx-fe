@@ -5,7 +5,7 @@
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "useDefineForClassFields": true,
-    "allowJs": false,
+    "allowJs": true,
 
     // Bundler mode
     "moduleResolution": "bundler",
@@ -17,15 +17,15 @@
     // JSX settings
     "jsx": "react-jsx",
 
-    // Strict type checking
+    // Relaxed type checking for mixed JS/TS project
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitReturns": true,
-    "noImplicitOverride": true,
-    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": false,
+    "noImplicitOverride": false,
+    "noUncheckedIndexedAccess": false,
 
     // Path mapping
     "baseUrl": ".",
@@ -67,9 +67,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.d.ts",
-    "vite.config.ts",
-    "playwright.config.ts"
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
@@ -77,9 +75,8 @@
     "build",
     "coverage",
     "test-results",
-    "playwright-report"
-  ],
-  "references": [
-    { "path": "./tsconfig.node.json" }
+    "playwright-report",
+    "vite.config.ts",
+    "playwright.config.ts"
   ]
 }

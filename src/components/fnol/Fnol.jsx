@@ -32,22 +32,36 @@ export default function PolicySearch() {
   const tRef = useRef(null);
 
   /* GraphQL hooks */
-  const [fetchBest, { loading: loadingBest, error: errorBest }] = useLazyQuery(POLICY_BY_LICENSE_PLATE, {
+  const [fetchBest, { data: bestData, loading: loadingBest, error: errorBest }] = useLazyQuery(POLICY_BY_LICENSE_PLATE, {
     fetchPolicy: "no-cache",
-    onCompleted: (d) => setBest(d?.policyByLicensePlate ?? null),
   });
-  const [fetchAll] = useLazyQuery(POLICIES_BY_LICENSE_PLATE, {
+  const [fetchAll, { data: allData }] = useLazyQuery(POLICIES_BY_LICENSE_PLATE, {
     fetchPolicy: "no-cache",
-    onCompleted: (d) => setAllMatches(d?.policiesByLicensePlate ?? []),
   });
-  const [checkPolicy, { loading: loadingPolicy, error: errPolicy }] = useLazyQuery(GET_POLICY_BY_NUMBER, {
+  const [checkPolicy, { data: policyData, loading: loadingPolicy, error: errPolicy }] = useLazyQuery(GET_POLICY_BY_NUMBER, {
     fetchPolicy: "no-cache",
-    onCompleted: (d) => {
-      if (d?.getPolicyByNumber?.policyNumber) {
-        navigate(`/policy/${encodeURIComponent(d.getPolicyByNumber.policyNumber)}`);
-      }
-    },
   });
+
+  // Handle fetchBest data changes
+  useEffect(() => {
+    if (bestData) {
+      setBest(bestData?.policyByLicensePlate ?? null);
+    }
+  }, [bestData]);
+
+  // Handle fetchAll data changes
+  useEffect(() => {
+    if (allData) {
+      setAllMatches(allData?.policiesByLicensePlate ?? []);
+    }
+  }, [allData]);
+
+  // Handle checkPolicy data changes
+  useEffect(() => {
+    if (policyData?.getPolicyByNumber?.policyNumber) {
+      navigate(`/policy/${encodeURIComponent(policyData.getPolicyByNumber.policyNumber)}`);
+    }
+  }, [policyData, navigate]);
 
   /* keyboard '/' focus */
   useEffect(() => {
