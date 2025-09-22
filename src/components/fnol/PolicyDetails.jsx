@@ -1,23 +1,8 @@
 import React, { useMemo } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { useNavigate, useParams } from "react-router-dom";
+import { GET_POLICY_BY_NUMBER } from "../../graphql/policies";
 
-const GET_POLICY_BY_NUMBER = gql`
-  query GetPolicyByNumber($policyNumber: String!) {
-    getPolicyByNumber(policyNumber: $policyNumber) {
-      id
-      policyNumber
-      policyType
-      policyStatus
-      startDate
-      endDate
-      sumInsured
-      premium
-      insured { firstName lastName email phoneNumber addressLine1 city province country }
-      vehicle { registrationNumber vin make model year usageType engineNo fuelType bodyType color }
-    }
-  }
-`;
 
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : "-");
 const money = (n) => (n == null ? "-" : new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(Number(n)));

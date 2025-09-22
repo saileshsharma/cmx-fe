@@ -1,57 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { gql, useLazyQuery, useMutation } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client";
 import { useLocation, useNavigate } from "react-router-dom";
+import { GET_SURVEYOR, UPDATE_SURVEYOR } from "../../graphql/surveyors";
 
-/* =========================================================================
-   GraphQL — adjust names if your schema differs
-   ========================================================================= */
-const GET_SURVEYOR = gql`
-  query GetSurveyor($id: ID!) {
-    getSurveyor(id: $id) {
-      id
-      name
-      email
-      phoneNumber
-      rating_avg
-      app_version
-      capacityPerDay
-      activeJobsCount
-      skills
-      createdAt
-      updatedAt
-      city
-      province
-      country
-      internal
-      isActive
-      status
-    }
-  }
-`;
-
-const UPDATE_SURVEYOR = gql`
-  mutation UpdateSurveyor($id: ID!, $input: UpdateSurveyorInput!) {
-    updateSurveyor(id: $id, input: $input) {
-      id
-      name
-      email
-      phoneNumber
-      rating_avg
-      app_version
-      capacityPerDay
-      activeJobsCount
-      skills
-      createdAt
-      updatedAt
-      city
-      province
-      country
-      internal
-      isActive
-      status
-    }
-  }
-`;
 
 /* =========================================================================
    Constants

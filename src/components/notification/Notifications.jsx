@@ -1,18 +1,8 @@
 // src/pages/FnolNoticePage.jsx
 import React from "react";
-import { gql, useSubscription } from "@apollo/client";
+import { useSubscription } from "@apollo/client";
+import { FNOL_ASSIGNMENT_NOTICE } from "../../graphql/subscriptions";
 
-// --- Subscription for FNOL created/assignment notice ---
-const FNOL_ASSIGNMENT_NOTICE = gql`
-  subscription FnolAssignmentNotice($fnolReferenceNo: String!) {
-    fnolAssignmentNotice(fnolReferenceNo: $fnolReferenceNo) {
-      fnolReferenceNo
-      status
-      message
-      timestamp
-    }
-  }
-`;
 
 // --- Toast helper ---
 const pushToast = (text) => {

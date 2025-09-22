@@ -1,54 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GoogleMap, MarkerF, InfoWindowF, useLoadScript } from "@react-google-maps/api";
-import { gql, useLazyQuery } from "@apollo/client";
-
-/* =========================
-   GraphQL
-   ========================= */
-const GET_ALL_SURVEYORS = gql`
-  query GetAllSurveyors {
-    getAllSurveyors {
-      id
-      name
-      email
-      phoneNumber
-      status            # AVAILABLE | UNAVAILABLE | INACTIVE
-      surveyorJobStatus # Accepted | Working | Pending | Closed | On_The_Way
-      currentLat
-      currentLng
-    }
-  }
-`;
-
-const GET_SURVEYORS_BY_JOB_STATUS = gql`
-  query GetSurveyorsByJobStatus($jobStatus: SurveyorJobStatus) {
-    getSurveyorsByJobStatus(jobStatus: $jobStatus) {
-      id
-      name
-      email
-      phoneNumber
-      status
-      surveyorJobStatus
-      currentLat
-      currentLng
-    }
-  }
-`;
-
-const GET_SURVEYORS_BY_STATUS = gql`
-  query GetSurveyorsByStatus($status: SurveyorStatus) {
-    getSurveyorsByStatus(status: $status) {
-      id
-      name
-      email
-      phoneNumber
-      status
-      surveyorJobStatus
-      currentLat
-      currentLng
-    }
-  }
-`;
+import { useLazyQuery } from "@apollo/client";
+import { GET_ALL_SURVEYORS, GET_SURVEYORS_BY_JOB_STATUS, GET_SURVEYORS_BY_STATUS } from "../../graphql/surveyors";
 
 /* =========================
    Constants & helpers

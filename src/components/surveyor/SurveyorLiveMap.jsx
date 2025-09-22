@@ -1,72 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { gql, useLazyQuery, useQuery } from "@apollo/client";
+import { useLazyQuery, useQuery } from "@apollo/client";
 import { Link } from "react-router-dom";
+import { GET_ALL_FNOL } from "../../graphql/fnol";
+import { GET_POLICY_BY_NUMBER } from "../../graphql/policies";
 
-/* =============================================================================
-   GraphQL
-   ============================================================================= */
-export const GET_ALL_FNOL = gql`
-  query GetAllFnol {
-    getAllFnol {
-      id
-      fnolState
-      fnolReferenceNo
-      accidentDate
-      description
-      severity
-      accidentLocation {
-        id
-        city
-        postalCode
-        latitude
-        longitude
-      }
-      surveyor { id name status }
-      policy   { id policyNumber }
-      vehicle  { id registrationNumber make model year }
-      insured  {
-        firstName
-        lastName
-        dob
-        gender
-        nationalId
-        passportNumber
-        email
-        phoneNumber
-        addressLine1
-        addressLine2
-        city
-        province
-        postalCode
-        country
-        driverLicenseNo
-        licenseIssueDate
-        licenseExpiryDate
-        occupation
-        maritalStatus
-        yearsDriving
-      }
-    }
-  }
-`;
-
-/** 🔎 Modal fetch for policy details (aligned with UI needs) */
-const GET_POLICY_BY_NUMBER = gql`
-  query GetPolicyByNumber($policyNumber: String!) {
-    getPolicyByNumber(policyNumber: $policyNumber) {
-      id
-      policyNumber
-      policyType
-      policyStatus
-      startDate
-      endDate
-      insured { email firstName lastName }
-      vehicle { registrationNo make model year }
-      premiumAmount
-      coverageAmount
-    }
-  }
-`;
 
 /* =============================================================================
    Helpers & UI bits

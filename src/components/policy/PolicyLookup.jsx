@@ -1,28 +1,7 @@
 import React, { useState } from "react";
-import { useLazyQuery, gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 
-const GET_POLICY_BY_ID = gql`
-  query ($policyId: String!) {
-    policyById(policyId: $policyId) {
-      policySeqID
-      policyID
-      policyType
-      status
-      startDate
-      endDate
-      policyHolder {
-        fullName
-        email
-        dob
-        address
-      }
-      agent {
-        fullName
-        licenseNo
-      }
-    }
-  }
-`;
+import { GET_POLICY_BY_ID_LOOKUP as GET_POLICY_BY_ID } from "../../graphql/policies";
 
 export default function PolicyLookup() {
   const [policyId, setPolicyId] = useState("");

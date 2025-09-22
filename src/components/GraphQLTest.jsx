@@ -1,28 +1,11 @@
 import React from 'react';
 import { useQuery } from '@apollo/client';
-import { gql } from '@apollo/client';
+import { HEALTH_QUERY, GET_ALL_POLICIES } from '../graphql/policies';
 
-const HEALTH_QUERY = gql`
-  query HealthCheck {
-    health
-  }
-`;
-
-const POLICIES_QUERY = gql`
-  query GetAllPolicies {
-    getAllPolicies {
-      id
-      policyNumber
-      policyStatus
-      startDate
-      endDate
-    }
-  }
-`;
 
 export default function GraphQLTest() {
   const { data: healthData, loading: healthLoading, error: healthError } = useQuery(HEALTH_QUERY);
-  const { data: policiesData, loading: policiesLoading, error: policiesError } = useQuery(POLICIES_QUERY);
+  const { data: policiesData, loading: policiesLoading, error: policiesError } = useQuery(GET_ALL_POLICIES);
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md m-4">

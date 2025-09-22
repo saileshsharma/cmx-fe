@@ -75,7 +75,7 @@ export const GET_ALL_CLAIMS = gql`
       incidentDate
       dateReported
       claimSeverity
-      
+
       fnol {
         id
         accidentDate
@@ -86,6 +86,39 @@ export const GET_ALL_CLAIMS = gql`
 
       # Uncomment if your schema exposes this relation:
       # policy { policyNumber }
+    }
+  }
+`;
+
+export const DUPLICATE_CLAIM = gql`
+  mutation DuplicateClaim($id: ID!) {
+    duplicateClaim(id: $id) {
+      id
+      claimNumber
+      claimStatus
+      claimAmount
+      claimSeverity
+      claimDate
+      incidentDate
+      dateReported
+      location
+      createdAt
+      fnol {
+        id
+        fnolReferenceNo
+        fnolState
+      }
+    }
+  }
+`;
+
+export const GET_CLAIMS_BY_POLICY = gql`
+  query GetClaimsByPolicyNumber($policyNumber: String!) {
+    getClaimsByPolicyNumber(policyNumber: $policyNumber) {
+      claimNumber
+      status
+      severity
+      createdAt
     }
   }
 `;

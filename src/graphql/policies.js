@@ -127,7 +127,7 @@ export const GET_POLICY_BY_ID = gql`
 
 
 // replace old GET_CLAIMS_BY_POLICY with this
-const GET_POLICY_WITH_CLAIMS = gql`
+export const GET_POLICY_WITH_CLAIMS = gql`
   query GetPolicyWithClaims($policyNumber: String!) {
     getPolicyByNumber(policyNumber: $policyNumber) {
       id
@@ -177,6 +177,75 @@ export const POLICIES_BY_LICENSE_PLATE = gql`
       endDate
       insuredName
       registrationNumber
+    }
+  }
+`;
+
+export const GET_POLICY_BY_NUMBER = gql`
+  query GetPolicyByNumber($policyNumber: String!) {
+    getPolicyByNumber(policyNumber: $policyNumber) {
+      id
+      policyNumber
+      policyType
+      policyStatus
+      startDate
+      endDate
+      sumInsured
+      premium
+      premiumAmount
+      coverageAmount
+      insured {
+        firstName
+        lastName
+        email
+        phoneNumber
+        addressLine1
+        city
+        province
+        country
+      }
+      vehicle {
+        registrationNumber
+        registrationNo
+        vin
+        make
+        model
+        year
+        usageType
+        engineNo
+        fuelType
+        bodyType
+        color
+      }
+    }
+  }
+`;
+
+export const HEALTH_QUERY = gql`
+  query HealthCheck {
+    health
+  }
+`;
+
+export const GET_POLICY_BY_ID_LOOKUP = gql`
+  query ($policyId: String!) {
+    policyById(policyId: $policyId) {
+      policySeqID
+      policyID
+      policyType
+      status
+      startDate
+      endDate
+      policyHolder {
+        fullName
+        email
+        dob
+        address
+      }
+      agent {
+        fullName
+        licenseNo
+      }
     }
   }
 `;

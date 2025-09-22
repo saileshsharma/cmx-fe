@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef, createContext, useContext } from "react";
-import { gql, useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client";
+import { useLazyQuery, useMutation, useQuery, useSubscription } from "@apollo/client";
 import { useNavigate } from "react-router-dom";
+import { GET_ALL_FNOL, UPDATE_FNOL, ATTACH_FNOL_MEDIA } from "../../graphql/fnol";
+import { GET_POLICY_BY_NUMBER } from "../../graphql/policies";
+import { FNOL_ASSIGNMENT_NOTICE } from "../../graphql/subscriptions";
 
 /* =============================================================================
    🎨 Theme
@@ -15,70 +18,6 @@ const UPLOADER_URL = import.meta.env.VITE_UPLOADER_URL || "http://localhost:8081
 const UPLOADER_FIELD = import.meta.env.VITE_UPLOADER_FIELD || "file";
 const SHOULD_ATTACH = String(import.meta.env.VITE_ATTACH_MEDIA || "1") === "1";
 
-/* =============================================================================
-   GraphQL
-   ============================================================================= */
-export const GET_ALL_FNOL = gql`
-  query GetAllFnol {
-    getAllFnol {
-      id
-      fnolState
-      fnolReferenceNo
-      accidentDate
-      description
-      severity
-      accidentLocation { id city province postalCode latitude longitude }
-      surveyor { id name status }
-      policy   { id policyNumber }
-      vehicle  { id registrationNumber make model year }
-      insured  {
-        firstName lastName dob gender nationalId passportNumber email phoneNumber
-        addressLine1 addressLine2 city province postalCode country
-        driverLicenseNo licenseIssueDate licenseExpiryDate occupation maritalStatus yearsDriving
-      }
-    }
-  }
-`;
-
-const UPDATE_FNOL = gql`
-  mutation UpdateFnol($id: ID!, $fnolState: FNOLState, $severity: ClaimSeverity, $description: String) {
-    updateFnol(id: $id, fnolState: $fnolState, severity: $severity, description: $description) {
-      id fnolState severity description
-    }
-  }
-`;
-
-const GET_POLICY_BY_NUMBER = gql`
-  query GetPolicyByNumber($policyNumber: String!) {
-    getPolicyByNumber(policyNumber: $policyNumber) {
-      id policyNumber policyType policyStatus startDate endDate
-      insured { email firstName lastName }
-      vehicle { registrationNumber make model year }
-      premiumAmount coverageAmount
-    }
-  }
-`;
-
-const ATTACH_FNOL_MEDIA = gql`
-  mutation AttachFnolMedia($fnolId: ID!, $items: [FnolMediaInput!]!) {
-    attachFnolMedia(fnolId: $fnolId, items: $items) {
-      id
-      media { id url type label createdAt }
-    }
-  }
-`;
-
-/* 🔔 Subscription: ONLY for FNOL created -> surveyor notice */
-const FNOL_ASSIGNMENT_NOTICE = gql`
-  subscription FnolAssignmentNotice($fnolRef: String!) {
-    fnolAssignmentNotice(fnolRef: $fnolRef) {
-      fnolRef
-      status
-      message
-      timestamp
-    }
-  }
-`;
 
 /* =============================================================================
    Helpers & UI bits

@@ -1,40 +1,8 @@
 // src/pages/PolicySearch.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { gql, useLazyQuery } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 import { useNavigate } from "react-router-dom";
-
-/* ========= GraphQL ========= */
-const POLICY_BY_LICENSE_PLATE = gql`
-  query PolicyByLicensePlate($plate: String!) {
-    policyByLicensePlate(plate: $plate) {
-      policyNumber
-      policyStatus
-      insuredName
-      registrationNumber
-      startDate
-      endDate
-    }
-  }
-`;
-const POLICIES_BY_LICENSE_PLATE = gql`
-  query PoliciesByLicensePlate($plate: String!, $includeInactive: Boolean) {
-    policiesByLicensePlate(plate: $plate, includeInactive: $includeInactive) {
-      policyNumber
-      policyStatus
-      insuredName
-      registrationNumber
-      startDate
-      endDate
-    }
-  }
-`;
-const GET_POLICY_BY_NUMBER = gql`
-  query GetPolicyByNumber($policyNumber: String!) {
-    getPolicyByNumber(policyNumber: $policyNumber) {
-      policyNumber
-    }
-  }
-`;
+import { POLICY_BY_LICENSE_PLATE, POLICIES_BY_LICENSE_PLATE, GET_POLICY_BY_NUMBER } from "../../graphql/policies";
 
 /* ========= UI helpers ========= */
 const normPlate = (s) => (s || "").toLowerCase().replace(/[\s-]/g, "");

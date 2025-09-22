@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { useNavigate } from "react-router-dom";
+import { GET_ALL_SURVEYORS_DETAILED } from "../../graphql/surveyors";
 
 /* =========================================================================
    🎨 Theme — tweak these hex codes to match your Claims Dashboard brand
@@ -23,35 +24,6 @@ const cssVars = {
   "--brand-ink": PALETTE.muted,
   "--brand-surface": PALETTE.surface,
 };
-
-/* =========================================================================
-   GraphQL
-   ========================================================================= */
-const GET_ALL_SURVEYORS = gql`
-  query GetAllSurveyors {
-    getAllSurveyors {
-      id
-      name
-      email
-      phoneNumber
-      currentLat
-      currentLng
-      rating_avg
-      app_version
-      capacityPerDay
-      activeJobsCount
-      skills
-      createdAt
-      updatedAt
-      city
-      province
-      country
-      internal
-      status              # AVAILABLE | UNAVAILABLE | INACTIVE
-      surveyorJobStatus   # Accepted | Working | Pending | Closed | On_The_Way
-    }
-  }
-`;
 
 /* =========================================================================
    Constants & helpers
@@ -109,7 +81,7 @@ function SkillChips({ skills }) {
    ========================================================================= */
 export default function SurveyorsInquiry() {
   const navigate = useNavigate();
-  const { data, loading, error, refetch } = useQuery(GET_ALL_SURVEYORS, {
+  const { data, loading, error, refetch } = useQuery(GET_ALL_SURVEYORS_DETAILED, {
     fetchPolicy: "cache-and-network",
     notifyOnNetworkStatusChange: true,
   });
