@@ -17,6 +17,7 @@ export const PATHS = {
   // Surveyor
   surveyorLiveMap: "/wip-page", // replace when implemented
   surveyorsInquiry: "/surveyors-inquiry",
+  surveyorsLiveDashboard: "/surveyors-live-dashboard",
 
   // Assignment (replace placeholders as you build them)
   claimsAssignment: "/claims-inquiry",
@@ -64,7 +65,9 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Surveyor",
     items: [
       { label: "Surveyor Dashboard", to: PATHS.dispatcherSurveyor, color: "text-purple-600", testId: "nav-dispatcher" },
-      { label: "Surveyor Live Map", to: PATHS.surveyorLiveMap, color: "text-pink-600", testId: "nav-live-map" }
+      { label: "Surveyor Live Map", to: PATHS.surveyorLiveMap, color: "text-pink-600", testId: "nav-live-map" },
+      { label: "Surveyor Live Dashboard", to: PATHS.surveyorsLiveDashboard, color: "text-pink-600", testId: "nav-live-dashboard" }
+      
     ],
   },
   {
