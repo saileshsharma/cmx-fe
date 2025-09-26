@@ -21,6 +21,7 @@ const ClaimsInquiry = lazy(() => import("@/components/claim/ClaimsInquiry")); //
 
 // Surveyor
 const SurveyorLiveMap = lazy(() => import("@/components/surveyor/SurveyorLiveMap"));
+const SurveyorLiveDashboard = lazy(() => import("@/components/surveyor/SurveyorLiveDashboard"));
 const SurveyorsInquiry = lazy(() => import("@/components/surveyor/SurveyorsInquiry"));
 const SurveyorsEdit = lazy(() => import("@/components/surveyor/edit"));
  
@@ -103,6 +104,7 @@ export default function AppRouter() {
 
             {/* Surveyor */}
             <Route path={PATHS.surveyorLiveMap} element={<SurveyorLiveMap />} />
+            <Route path={PATHS.surveyorsLiveDashboard} element={<SurveyorLiveDashboard />} />
             <Route path={PATHS.surveyorsInquiry} element={<SurveyorsInquiry />} />
             <Route path={PATHS.surveyorsInquiry} element={<SurveyorsEdit />} />
 

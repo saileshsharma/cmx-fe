@@ -34,9 +34,12 @@
   },
   "dependencies": {
     "@apollo/client": "^3.14.0",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@react-google-maps/api": "^2.20.7",
     "@yudiel/react-qr-scanner": "^2.3.1",
     "chart.js": "^4.5.0",
+    "clsx": "^2.1.1",
     "framer-motion": "^12.23.21",
     "graphql": "^16.11.0",
     "graphql-ws": "^6.0.6",
@@ -48,7 +51,8 @@
     "react-router-dom": "^7.7.1",
     "react-toastify": "^11.0.5",
     "react-window": "^1.8.11",
-    "recharts": "^3.2.1"
+    "recharts": "^3.2.1",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
