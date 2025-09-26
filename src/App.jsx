@@ -26,7 +26,7 @@ import SurveyorLiveMap from "./components/surveyor/SurveyorLiveMap.jsx";
 import Surveyors from "./components/surveyor/Surveyors.jsx";
 import SurveyorsInquiry from "./components/surveyor/SurveyorsInquiry.jsx";
 import SurveyorEdit from "./components/surveyor/SurveyorEdit.jsx";
-import SurveyorLiveDashboard from "./components/surveyor/SurveyorLiveDashboard.jsx";
+import SurveyorLiveDashboard from "./components/surveyor/SurveyorLiveDashboard.tsx";
 
 // Notifications
 import Notifications from "./components/notification/Notifications.jsx";

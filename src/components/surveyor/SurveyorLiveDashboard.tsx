@@ -1,4 +1,13 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Activity, MapPin, Clock, TrendingUp, RefreshCw } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -13,47 +22,31 @@ import {
 } from "recharts";
 
 /**
- * CMX Real-Time Dashboards — UI (no external UI libs)
- * - Plain HTML + Tailwind classes
- * - No shadcn/ui, no lucide-react, no framer-motion
- * - Uses Recharts only (install if missing)
+ * SurveyorLiveDashboard — shadcn/ui + Recharts + framer-motion
  *
- * Replace useMockStream() with your GraphQL subscriptions for rt.*.upsert topics.
+ * Replace useMockStream() with GraphQL subscriptions forwarding:
+ *   - rt.surveyor.live.upsert
+ *   - rt.inflow.upsert
+ *   - rt.assignment.latency.upsert
  */
 
-// ---- Simple Card / Badge / Button primitives -------------------------------
-function Card({ className = "", children }) {
-  return <div className={`rounded-2xl border bg-white ${className}`}>{children}</div>;
-}
-function CardContent({ className = "", children }) {
-  return <div className={`p-4 ${className}`}>{children}</div>;
-}
-function Badge({ className = "", children }) {
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${className}`}>
-      {children}
-    </span>
-  );
-}
-function Button({ className = "", children, ...props }) {
-  return (
-    <button
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-50 ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-}
+// ---------- Types ------------------------------------------------------------
+export type SurveyorPoint = {
+  surveyorId: string;
+  lon: number;
+  lat: number;
+  availability: "AVAILABLE" | "ON_JOB" | "OFFLINE";
+  ts: string;
+};
 
-// ---- Mock stream for demo ---------------------------------------------------
+// ---------- Mock stream (replace with real subscriptions) --------------------
 function useMockStream() {
-  const [surveyorLive, setSurveyorLive] = useState(() =>
+  const [surveyorLive, setSurveyorLive] = useState<SurveyorPoint[]>(() =>
     Array.from({ length: 60 }, (_, i) => ({
       surveyorId: `SVY-${100 + i}`,
       lon: 103.8 + Math.random() * 0.2,
       lat: 1.22 + Math.random() * 0.1,
-      availability: ["AVAILABLE", "ON_JOB", "OFFLINE"][Math.floor(Math.random() * 3)],
+      availability: ["AVAILABLE", "ON_JOB", "OFFLINE"][Math.floor(Math.random() * 3)] as SurveyorPoint["availability"],
       ts: new Date().toISOString(),
     }))
   );
@@ -77,18 +70,16 @@ function useMockStream() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      // drift surveyors slightly
       setSurveyorLive((prev) =>
         prev.map((s) => ({
           ...s,
           lon: s.lon + (Math.random() - 0.5) * 0.002,
           lat: s.lat + (Math.random() - 0.5) * 0.002,
-          availability:
-            Math.random() < 0.02 ? ["AVAILABLE", "ON_JOB", "OFFLINE"][Math.floor(Math.random() * 3)] : s.availability,
+          availability: Math.random() < 0.02
+            ? (["AVAILABLE", "ON_JOB", "OFFLINE"][Math.floor(Math.random() * 3)] as SurveyorPoint["availability"]) : s.availability,
           ts: new Date().toISOString(),
         }))
       );
-      // push next window for inflow & latency
       setInflow((prev) => {
         const next = prev.slice(1);
         next.push({
@@ -112,13 +103,12 @@ function useMockStream() {
     return () => clearInterval(id);
   }, []);
 
-  return { surveyorLive, inflow, latency };
+  return { surveyorLive, inflow, latency } as const;
 }
 
-// ---- Map placeholder ---------------------------------------------------------
-function SurveyorLiveMap({ points }) {
-  // Map placeholder using a simple grid + absolute markers
-  const ref = useRef(null);
+// ---------- Map placeholder --------------------------------------------------
+function SurveyorLiveMap({ points }: { points: SurveyorPoint[] }) {
+  const ref = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 800, h: 420 });
 
   useEffect(() => {
@@ -130,17 +120,15 @@ function SurveyorLiveMap({ points }) {
   }, []);
 
   // SG bounding box (rough) → project lon/lat to x/y
-  const project = (lon, lat) => {
-    const minLon = 103.6,
-      maxLon = 104.05;
-    const minLat = 1.15,
-      maxLat = 1.48;
+  const project = (lon: number, lat: number) => {
+    const minLon = 103.6, maxLon = 104.05;
+    const minLat = 1.15, maxLat = 1.48;
     const x = ((lon - minLon) / (maxLon - minLon)) * size.w;
     const y = size.h - ((lat - minLat) / (maxLat - minLat)) * size.h;
     return { x, y };
   };
 
-  const color = (a) => (a === "AVAILABLE" ? "bg-emerald-500" : a === "ON_JOB" ? "bg-amber-500" : "bg-slate-400");
+  const color = (a: SurveyorPoint["availability"]) => (a === "AVAILABLE" ? "bg-emerald-500" : a === "ON_JOB" ? "bg-amber-500" : "bg-slate-400");
 
   return (
     <div ref={ref} className="relative w-full h-[420px] rounded-2xl border bg-white overflow-hidden">
@@ -148,12 +136,22 @@ function SurveyorLiveMap({ points }) {
       {points.map((p) => {
         const { x, y } = project(p.lon, p.lat);
         return (
-          <span
-            key={p.surveyorId}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 ${color(p.availability)} w-3 h-3 rounded-full shadow`}
-            style={{ left: x, top: y }}
-            title={`${p.surveyorId} • ${p.availability}`}
-          />
+          <TooltipProvider key={p.surveyorId}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${color(p.availability)} w-3 h-3 rounded-full shadow`}
+                  style={{ left: x, top: y }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div className="font-medium">{p.surveyorId}</div>
+                  <div className="opacity-70">{p.availability}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       })}
       <div className="absolute bottom-3 right-3 flex items-center gap-2 rounded-xl bg-white/80 backdrop-blur px-3 py-1.5 shadow">
@@ -165,12 +163,12 @@ function SurveyorLiveMap({ points }) {
   );
 }
 
-// ---- KPI cards ---------------------------------------------------------------
-function KpiCard({ label, value, hint, icon }) {
+// ---------- KPI Card ---------------------------------------------------------
+function KpiCard({ label, value, icon: Icon, hint }: { label: string; value: string | number; icon: any; hint?: string }) {
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardContent className="p-4 flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-slate-100">{icon || <span>📊</span>}</div>
+        <div className="p-2 rounded-xl bg-slate-100"><Icon className="w-5 h-5" /></div>
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
           <div className="text-2xl font-semibold leading-tight">{value}</div>
@@ -181,13 +179,13 @@ function KpiCard({ label, value, hint, icon }) {
   );
 }
 
-// ---- Charts ------------------------------------------------------------------
-function InflowChart({ data }) {
+// ---------- Charts -----------------------------------------------------------
+function InflowChart({ data }: { data: any[] }) {
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <div className="font-medium">Claim Inflow (5-min windows)</div>
+          <div className="font-medium">Claim Inflow (5‑min windows)</div>
         </div>
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
@@ -208,9 +206,9 @@ function InflowChart({ data }) {
   );
 }
 
-function LatencyChart({ data }) {
+function LatencyChart({ data }: { data: any[] }) {
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="font-medium">Assignment Latency (p50/p95, seconds)</div>
@@ -233,33 +231,36 @@ function LatencyChart({ data }) {
   );
 }
 
-// ---- Filters -----------------------------------------------------------------
-function Filters({ onRefresh }) {
+// ---------- Filters ----------------------------------------------------------
+function Filters({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <select defaultValue="SG" className="h-9 rounded-lg border px-2 text-sm">
-        <option value="SG">SG</option>
-        <option value="TH">TH</option>
-        <option value="VN">VN</option>
-      </select>
-
-      <select defaultValue="Central" className="h-9 rounded-lg border px-2 text-sm">
-        <option value="Central">Central</option>
-        <option value="North">North</option>
-        <option value="East">East</option>
-        <option value="West">West</option>
-      </select>
-
-      <input className="h-9 rounded-lg border px-3 text-sm w-56" placeholder="Filter by Surveyor ID or Claim #" />
-
-      <Button onClick={onRefresh}>
-        <span className="text-lg">↻</span> Refresh
+      <Select defaultValue="SG">
+        <SelectTrigger className="w-28"><SelectValue placeholder="Tenant" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="SG">SG</SelectItem>
+          <SelectItem value="TH">TH</SelectItem>
+          <SelectItem value="VN">VN</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select defaultValue="Central">
+        <SelectTrigger className="w-40"><SelectValue placeholder="Region" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Central">Central</SelectItem>
+          <SelectItem value="North">North</SelectItem>
+          <SelectItem value="East">East</SelectItem>
+          <SelectItem value="West">West</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input className="w-52" placeholder="Filter by Surveyor ID or Claim #" />
+      <Button variant="outline" size="sm" onClick={onRefresh}>
+        <RefreshCw className="w-4 h-4 mr-1" /> Refresh
       </Button>
     </div>
   );
 }
 
-// ---- Page --------------------------------------------------------------------
+// ---------- Page -------------------------------------------------------------
 export default function SurveyorLiveDashboard() {
   const { surveyorLive, inflow, latency } = useMockStream();
 
@@ -272,52 +273,37 @@ export default function SurveyorLiveDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Real-Time Operations</h1>
+          <h1 className="text-2xl font-semibold">Real‑Time Operations</h1>
           <p className="text-slate-500">Live surveyors, claim inflow by region, and assignment latency.</p>
         </div>
-        <Filters onRefresh={() => {}} />
+        <Filters onRefresh={() => { /* hook to refetch or reset window */ }} />
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <KpiCard
-          label="Surveyors Online"
-          value={online}
-          hint={`${available} available / ${onJob} on job`}
-          icon={<span className="text-lg">⚡</span>}
-        />
-        <KpiCard
-          label="Claims (last hr)"
-          value={inflow.slice(-12).reduce((a, b) => a + b.minor + b.medium + b.major, 0)}
-          hint="Minor/Med/Major split shown below"
-          icon={<span className="text-lg">📈</span>}
-        />
-        <KpiCard
-          label="Assignment p95"
-          value={`${(latency[latency.length - 1]?.p95) || 0}s`}
-          hint="Lower is better"
-          icon={<span className="text-lg">⏱️</span>}
-        />
+        <KpiCard label="Surveyors Online" value={online} icon={Activity} hint={`${available} available / ${onJob} on job`} />
+        <KpiCard label="Claims (last hr)" value={inflow.slice(-12).reduce((a,b)=>a+b.minor+b.medium+b.major,0)} icon={TrendingUp} hint="Minor/Med/Major split shown below" />
+        <KpiCard label="Assignment p95" value={`${latency.at(-1)?.p95 ?? 0}s`} icon={Clock} hint="Lower is better" />
       </div>
 
       {/* Main grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <Card>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-medium">
-                <span className="text-lg">📍</span> Surveyor Live Map
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <Card className="rounded-2xl">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-medium"><MapPin className="w-4 h-4" /> Surveyor Live Map</div>
+                <Badge variant="secondary">~{online} active</Badge>
               </div>
-              <Badge>~{online} active</Badge>
-            </div>
-            <SurveyorLiveMap points={surveyorLive} />
-          </CardContent>
-        </Card>
+              <SurveyorLiveMap points={surveyorLive} />
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <div className="space-y-4">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="space-y-4">
           <InflowChart data={inflow} />
           <LatencyChart data={latency} />
-        </div>
+        </motion.div>
       </div>
     </div>
   );
